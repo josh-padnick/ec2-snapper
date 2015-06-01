@@ -1,14 +1,25 @@
 package main
 
 import (
-	"fmt"
 	"time"
-	//"github.com/awslabs/aws-sdk-go/aws"
+
+	"github.com/mitchellh/cli"
 	"github.com/awslabs/aws-sdk-go/service/ec2"
 )
 
-func main() {
+type CreateCommand struct {
+	Ui cli.Ui
+}
 
+func (c *CreateCommand) Help() string {
+	return "Help"
+}
+
+func (c *CreateCommand) Synopsis() string {
+	return "Create an AMI of the given EC2 instance"
+}
+
+func (c *CreateCommand) Run(args []string) int {
 	// Create an EC2 service object; AWS region is picked up from the "AWS_REGION" env var.
 	svc := ec2.New(nil)
 
@@ -24,7 +35,7 @@ func main() {
 	dryRun := false
 	noReboot := true
 
-	fmt.Printf("==> Creating AMI for %s...\n", instanceId)
+	c.Ui.Output("==> Creating AMI for " + instanceId + "...")
 
 	resp, err := svc.CreateImage(&ec2.CreateImageInput{
 		Name: &name,
@@ -35,5 +46,7 @@ func main() {
 		panic(err)
 	}
 
-	fmt.Printf("==> Created %s named \"%s\"\n",*resp.ImageID,name)
+	c.Ui.Info("==> Created " + *resp.ImageID + " named \"" + name + "\"")
+	return 0
 }
+
