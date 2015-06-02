@@ -33,10 +33,10 @@ Common USA regions are:
 
 ### Create an AMI
 ```
-ec2-snapper create --name=ami-2 --instance-id=i-c724be30 --dry-run --no-reboot
+ec2-snapper create --name=ami-2 --instance=i-c724be30 --dry-run --no-reboot
 ```
 
 ### Delete AMIs older than X days
 ```
-ec2-snapper delete --instance-id=i-c724b30 --min-age=30d
+ec2-snapper delete --instance=i-c724b30 --older-than=30d
 ```
