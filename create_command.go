@@ -29,10 +29,10 @@ func (c *CreateCommand) Help() string {
 Create an AMI of the given EC2 instance.
 
 Available args are:
---instance	   ` + dscrInstanceId + `
---name    	   ` + dscrName + `
---dry-run      ` + dscrDryRun + `
---no-reboot    ` + dscrNoReboot
+--instance      ` + dscrInstanceId + `
+--name          ` + dscrName + `
+--dry-run       ` + dscrDryRun + `
+--no-reboot     ` + dscrNoReboot
 }
 
 func (c *CreateCommand) Synopsis() string {
@@ -56,12 +56,12 @@ func (c *CreateCommand) Run(args []string) int {
 
 	// Check for required command-line args
 	if c.InstanceId == "" {
-		c.Ui.Error("ERROR: The command-line parameter '--instance' is required.")
+		c.Ui.Error("ERROR: The argument '--instance' is required.")
 		return 1
 	}
 
 	if c.Name == "" {
-		c.Ui.Error("ERROR: The command-line parameter '--name' is required.")
+		c.Ui.Error("ERROR: The argument '--name' is required.")
 		return 1
 	}
 
@@ -69,11 +69,10 @@ func (c *CreateCommand) Run(args []string) int {
 	svc := ec2.New(nil)
 
 	// Generate a nicely formatted timestamp for right now
-	const layout = "2006-01-02 at 15-04-05 (MST)"
+	const layout = "2006-01-02 at 15_04_05 (MST)"
 	t := time.Now()
 
 	// Create the AMI Snapshot
-	// Todo: Capture these vals from command-line args
 	name := c.Name + " " + t.Format(layout)
 	instanceId := c.InstanceId
 	dryRun := c.DryRun
