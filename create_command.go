@@ -89,6 +89,15 @@ func (c *CreateCommand) Run(args []string) int {
 		panic(err)
 	}
 
+	// Assign tags to this AMI.  We'll use these when it comes time to delete the AMI
+	tagName := "ec2-snapper-instance-id"
+
+	c.Ui.Output("==> Adding tag " + tagName + " to AMI " + *resp.ImageID + "...")
+	svc.CreateTags(&ec2.CreateTagsInput{
+		Resources: []*string{resp.ImageID},
+		Tags: []*ec2.Tag{&ec2.Tag{ Key: &tagName, Value: &c.InstanceId }},
+	})
+
 	c.Ui.Info("==> Success! Created " + *resp.ImageID + " named \"" + name + "\"")
 	return 0
 }
