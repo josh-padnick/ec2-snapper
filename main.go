@@ -44,6 +44,12 @@ func main() {
 		},
 	}
 
+	// Confirm that AWS credentials are set as environment
+	if os.Getenv("AWS_REGION") == "" {
+		fmt.Println("ERROR: You must set the AWS_REGION environment variable to a value like \"us-west-2\" or \"us-east-1\"")
+		os.Exit(1)
+	}
+
 	exitStatus, err := c.Run()
 	if err != nil {
 		fmt.Println(os.Stderr, err.Error())
