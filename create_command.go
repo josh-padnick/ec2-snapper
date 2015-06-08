@@ -74,7 +74,7 @@ func (c *CreateCommand) Run(args []string) int {
 	t := time.Now()
 
 	// Create the AMI Snapshot
-	name := c.Name + " " + t.Format(dateLayoutForAmiName)
+	name := c.Name + " - " + t.Format(dateLayoutForAmiName)
 
 	c.Ui.Output("==> Creating AMI for " + c.InstanceId + "...")
 
@@ -89,8 +89,6 @@ func (c *CreateCommand) Run(args []string) int {
 
 	// Assign tags to this AMI.  We'll use these when it comes time to delete the AMI
 	c.Ui.Output("==> Adding tags to AMI " + *resp.ImageID + "...")
-
-	dateLayoutForTagValue := time.Now().Format(time.RFC3339)
 
 	svc.CreateTags(&ec2.CreateTagsInput{
 		Resources: []*string{resp.ImageID},
