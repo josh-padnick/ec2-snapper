@@ -82,7 +82,9 @@ func (c *DeleteCommand) Run(args []string) int {
 			},
 		},
 	})
-	if err != nil {
+	if strings.Contains(err.Error(), "NoCredentialProviders") {
+		c.Ui.Error("ERROR: No AWS credentials were found.  Either set the environment variables AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY, or run this program on an EC2 instance that has an IAM Role with the appropriate permissions.")
+	} else if err != nil {
 		panic(err)
 	}
 	if len(resp.Images) == 0 {
