@@ -91,13 +91,15 @@ func (c *DeleteCommand) Run(args []string) int {
 	}
 
 	// Parse our date range
-	match, _ := regexp.MatchString("^[0-9]*(h|d)$", c.OlderThan)
+	match, _ := regexp.MatchString("^[0-9]*(h|d|m)$", c.OlderThan)
 	if ! match {
 		c.Ui.Error("The --older-than value of \"" + c.OlderThan + "\" is not formatted properly.  Use formats like 30d or 24h")
 		return 0
 	}
 
+	var minutes float64
 	var hours float64
+
 	// We were given a time like "12h"
 	if match, _ := regexp.MatchString("^[0-9]*(h)$", c.OlderThan); match {
 		hours, _ = strconv.ParseFloat(c.OlderThan[0:len(c.OlderThan)-1], 64)
@@ -109,21 +111,10 @@ func (c *DeleteCommand) Run(args []string) int {
 		hours *= 24
 	}
 
-	// Now filter the AMIs to only include those within our date range
-	var filteredAmis[]*ec2.Image
-	for i := 0; i < len(resp.Images); i++ {
-		now := time.Now()
-		creationDate, err := time.Parse(time.RFC3339Nano, *resp.Images[i].CreationDate)
-		if err != nil {
-			panic(err)
-		}
-
-		duration := now.Sub(creationDate)
-
-		if duration.Hours() > hours {
-			c.Ui.Error(duration.String())
-			filteredAmis = append(filteredAmis, resp.Images[i])
-		}
+	// We were given a time like "5m"
+	if match, _ := regexp.MatchString("^[0-9]*(m)$", c.OlderThan); match {
+		minutes, _ = strconv.ParseFloat(c.OlderThan[0:len(c.OlderThan)-1], 64)
+		hours = minutes/60
 	}
 
 	// Get the AWS Account ID of the current AWS account
@@ -137,6 +128,23 @@ func (c *DeleteCommand) Run(args []string) int {
 	awsAccountId := strings.Split(*respIam.User.ARN, ":")[4]
 	c.Ui.Output("==> Identified current AWS Account Id as " + awsAccountId)
 
+	// Now filter the AMIs to only include those within our date range
+	var filteredAmis[]*ec2.Image
+	for i := 0; i < len(resp.Images); i++ {
+		now := time.Now()
+		creationDate, err := time.Parse(time.RFC3339Nano, *resp.Images[i].CreationDate)
+		if err != nil {
+			panic(err)
+		}
+
+		duration := now.Sub(creationDate)
+
+		if duration.Hours() > hours {
+			filteredAmis = append(filteredAmis, resp.Images[i])
+		}
+	}
+	c.Ui.Output("==> Found " + strconv.Itoa(len(filteredAmis)) + " total AMIs for deletion.")
+
 	// Get a list of every single snapshot in our account
 	// (I wasn't able to find a better way to filter these, but suggestions welcome!)
 	respDscrSnapshots, err := svc.DescribeSnapshots(&ec2.DescribeSnapshotsInput{
@@ -145,12 +153,12 @@ func (c *DeleteCommand) Run(args []string) int {
 	if err != nil {
 		panic(err)
 	}
-	c.Ui.Output("==> Found " + strconv.Itoa(len(respDscrSnapshots.Snapshots)) + " snapshots in our account to search through.")
+	c.Ui.Output("==> Found " + strconv.Itoa(len(respDscrSnapshots.Snapshots)) + " total snapshots in our account.")
 
 	// Begin deleting AMIs...
 	for i := 0; i < len(filteredAmis); i++ {
 		// Step 1: De-register the AMI
-		c.Ui.Output(*filteredAmis[i].ImageID + ": De-registering...")
+		c.Ui.Output(*filteredAmis[i].ImageID + ": De-registering AMI named \"" + *filteredAmis[i].Name + "\"...")
 		_, err := svc.DeregisterImage(&ec2.DeregisterImageInput{
 			DryRun: &c.DryRun,
 			ImageID: filteredAmis[i].ImageID,
