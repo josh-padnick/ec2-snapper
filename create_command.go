@@ -84,7 +84,7 @@ func (c *CreateCommand) Run(args []string) int {
 		InstanceID: &c.InstanceId,
 		DryRun: &c.DryRun,
 		NoReboot: &c.NoReboot })
-	if strings.Contains(err.Error(), "NoCredentialProviders") {
+	if err != nil && strings.Contains(err.Error(), "NoCredentialProviders") {
 		c.Ui.Error("ERROR: No AWS credentials were found.  Either set the environment variables AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY, or run this program on an EC2 instance that has an IAM Role with the appropriate permissions.")
 		return 1
 	} else if err != nil {

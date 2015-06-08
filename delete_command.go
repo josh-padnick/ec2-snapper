@@ -1,16 +1,15 @@
 package main
 
 import (
-	"time"
 	"flag"
+	"regexp"
+	"strconv"
+	"strings"
+	"time"
 
 	"github.com/mitchellh/cli"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"strconv"
-	"strings"
-	"github.com/aws/aws-sdk-go/service/iam"
-	"regexp"
 )
 
 type DeleteCommand struct {
@@ -82,7 +81,7 @@ func (c *DeleteCommand) Run(args []string) int {
 			},
 		},
 	})
-	if strings.Contains(err.Error(), "NoCredentialProviders") {
+	if err != nil && strings.Contains(err.Error(), "NoCredentialProviders") {
 		c.Ui.Error("ERROR: No AWS credentials were found.  Either set the environment variables AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY, or run this program on an EC2 instance that has an IAM Role with the appropriate permissions.")
 		return 1
 	} else if err != nil {
@@ -92,6 +91,11 @@ func (c *DeleteCommand) Run(args []string) int {
 		c.Ui.Error("No AMIs were found for EC2 instance \"" + c.InstanceId + "\"")
 		return 0
 	}
+
+	// Get the AWS Account ID of the current AWS account
+	// We need this to do a more efficient lookup on the snapshot volumes
+	awsAccountId := *resp.Images[0].OwnerID
+	c.Ui.Output("==> Identified current AWS Account Id as " + awsAccountId)
 
 	// Parse our date range
 	match, _ := regexp.MatchString("^[0-9]*(h|d|m)$", c.OlderThan)
@@ -120,17 +124,6 @@ func (c *DeleteCommand) Run(args []string) int {
 		hours = minutes/60
 	}
 
-	// Get the AWS Account ID of the current AWS account
-	// We need this to do a more efficient lookup on the snapshot volumes
-	// - Per http://docs.aws.amazon.com/general/latest/gr/acct-identifiers.html, we assume the Account Id is always 12 digits
-	// - Per http://docs.aws.amazon.com/general/latest/gr/aws-arns-and-namespaces.html#arn-syntax-iam, we assume the current user's ARN
-	//   is always of the form arn:aws:iam::account-id:user/user-name
-	svcIam := iam.New(nil)
-
-	respIam, err := svcIam.GetUser(&iam.GetUserInput{})
-	awsAccountId := strings.Split(*respIam.User.ARN, ":")[4]
-	c.Ui.Output("==> Identified current AWS Account Id as " + awsAccountId)
-
 	// Now filter the AMIs to only include those within our date range
 	var filteredAmis[]*ec2.Image
 	for i := 0; i < len(resp.Images); i++ {
@@ -148,6 +141,11 @@ func (c *DeleteCommand) Run(args []string) int {
 	}
 	c.Ui.Output("==> Found " + strconv.Itoa(len(filteredAmis)) + " total AMIs for deletion.")
 
+	if len(filteredAmis) == 0 {
+		c.Ui.Error("No AMIs to delete.")
+		return 0
+	}
+
 	// Get a list of every single snapshot in our account
 	// (I wasn't able to find a better way to filter these, but suggestions welcome!)
 	respDscrSnapshots, err := svc.DescribeSnapshots(&ec2.DescribeSnapshotsInput{
@@ -156,7 +154,7 @@ func (c *DeleteCommand) Run(args []string) int {
 	if err != nil {
 		panic(err)
 	}
-	c.Ui.Output("==> Found " + strconv.Itoa(len(respDscrSnapshots.Snapshots)) + " total snapshots in our account.")
+	c.Ui.Output("==> Found " + strconv.Itoa(len(respDscrSnapshots.Snapshots)) + " total snapshots in this account.")
 
 	// Begin deleting AMIs...
 	for i := 0; i < len(filteredAmis); i++ {
