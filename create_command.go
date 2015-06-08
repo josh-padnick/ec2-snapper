@@ -96,7 +96,6 @@ func (c *CreateCommand) Run(args []string) int {
 		Resources: []*string{resp.ImageID},
 		Tags: []*ec2.Tag{
 			&ec2.Tag{ Key: aws.String("ec2-snapper-instance-id"), Value: &c.InstanceId },
-			&ec2.Tag{ Key: aws.String("ec2-snapper-snapshot-date"), Value: &dateLayoutForTagValue },
 		},
 	})
 
