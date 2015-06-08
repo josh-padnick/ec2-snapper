@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"github.com/aws/aws-sdk-go/service/iam"
+	"regexp"
 )
 
 type DeleteCommand struct {
@@ -72,7 +73,7 @@ func (c *DeleteCommand) Run(args []string) int {
 	// Create an EC2 service object; AWS region is picked up from the "AWS_REGION" env var.
 	svc := ec2.New(nil)
 
-	// Get a list of the existing AMIs that meet our criteria
+	// Get a list of the existing AMIs that were created for the given EC2 instances
 	resp, err := svc.DescribeImages(&ec2.DescribeImagesInput{
 		Filters: []*ec2.Filter{
 			&ec2.Filter{
@@ -83,6 +84,46 @@ func (c *DeleteCommand) Run(args []string) int {
 	})
 	if err != nil {
 		panic(err)
+	}
+	if len(resp.Images) == 0 {
+		c.Ui.Error("No AMIs were found for EC2 instance \"" + c.InstanceId + "\"")
+		return 0
+	}
+
+	// Parse our date range
+	match, _ := regexp.MatchString("^[0-9]*(h|d)$", c.OlderThan)
+	if ! match {
+		c.Ui.Error("The --older-than value of \"" + c.OlderThan + "\" is not formatted properly.  Use formats like 30d or 24h")
+		return 0
+	}
+
+	var hours float64
+	// We were given a time like "12h"
+	if match, _ := regexp.MatchString("^[0-9]*(h)$", c.OlderThan); match {
+		hours, _ = strconv.ParseFloat(c.OlderThan[0:len(c.OlderThan)-1], 64)
+	}
+
+	// We were given a time like "15d"
+	if match, _ := regexp.MatchString("^[0-9]*(d)$", c.OlderThan); match {
+		hours, _ = strconv.ParseFloat(c.OlderThan[0:len(c.OlderThan)-1], 64)
+		hours *= 24
+	}
+
+	// Now filter the AMIs to only include those within our date range
+	var filteredAmis[]*ec2.Image
+	for i := 0; i < len(resp.Images); i++ {
+		now := time.Now()
+		creationDate, err := time.Parse(time.RFC3339Nano, *resp.Images[i].CreationDate)
+		if err != nil {
+			panic(err)
+		}
+
+		duration := now.Sub(creationDate)
+
+		if duration.Hours() > hours {
+			c.Ui.Error(duration.String())
+			filteredAmis = append(filteredAmis, resp.Images[i])
+		}
 	}
 
 	// Get the AWS Account ID of the current AWS account
@@ -107,42 +148,39 @@ func (c *DeleteCommand) Run(args []string) int {
 	c.Ui.Output("==> Found " + strconv.Itoa(len(respDscrSnapshots.Snapshots)) + " snapshots in our account to search through.")
 
 	// Begin deleting AMIs...
-	if len(resp.Images) == 0 {
-		c.Ui.Error("No AMIs were found for EC2 instance \"" + c.InstanceId + "\"")
-	} else {
-		for i := 0; i < len(resp.Images); i++ {
-			// Step 1: De-register the AMI
-			c.Ui.Output(*resp.Images[i].ImageID + ": De-registering...")
-			_, err := svc.DeregisterImage(&ec2.DeregisterImageInput{
-				DryRun: &c.DryRun,
-				ImageID: resp.Images[i].ImageID,
-			})
-			if err != nil {
-				if ! strings.Contains(err.Error(), "DryRunOperation") {
-					panic(err)
-				}
+	for i := 0; i < len(filteredAmis); i++ {
+		// Step 1: De-register the AMI
+		c.Ui.Output(*filteredAmis[i].ImageID + ": De-registering...")
+		_, err := svc.DeregisterImage(&ec2.DeregisterImageInput{
+			DryRun: &c.DryRun,
+			ImageID: filteredAmis[i].ImageID,
+		})
+		if err != nil {
+			if ! strings.Contains(err.Error(), "DryRunOperation") {
+				panic(err)
 			}
-
-			// Step 2: Delete the corresponding AMI snapshot
-			// Look at the "description" for each Snapshot to see if it contains our AMI id
-			snapshotId := ""
-			for j := 0; j < len(respDscrSnapshots.Snapshots); j++ {
-				if strings.Contains(*respDscrSnapshots.Snapshots[j].Description, *resp.Images[i].ImageID) {
-					snapshotId = *respDscrSnapshots.Snapshots[j].SnapshotID
-					break
-				}
-			}
-
-			c.Ui.Output(*resp.Images[i].ImageID + ": Deleting snapshot " + snapshotId + "...")
-			svc.DeleteSnapshot(&ec2.DeleteSnapshotInput{
-				DryRun: &c.DryRun,
-				SnapshotID: &snapshotId,
-			})
-
-			c.Ui.Output(*resp.Images[i].ImageID + ": Done!")
-			c.Ui.Output("")
 		}
+
+		// Step 2: Delete the corresponding AMI snapshot
+		// Look at the "description" for each Snapshot to see if it contains our AMI id
+		snapshotId := ""
+		for j := 0; j < len(respDscrSnapshots.Snapshots); j++ {
+			if strings.Contains(*respDscrSnapshots.Snapshots[j].Description, *filteredAmis[i].ImageID) {
+				snapshotId = *respDscrSnapshots.Snapshots[j].SnapshotID
+				break
+			}
+		}
+
+		c.Ui.Output(*filteredAmis[i].ImageID + ": Deleting snapshot " + snapshotId + "...")
+		svc.DeleteSnapshot(&ec2.DeleteSnapshotInput{
+			DryRun: &c.DryRun,
+			SnapshotID: &snapshotId,
+		})
+
+		c.Ui.Output(*filteredAmis[i].ImageID + ": Done!")
+		c.Ui.Output("")
 	}
+
 
 	// Generate a nicely formatted timestamp for right now
 	//	const dateLayoutForAmiName = "2006-01-02 at 15_04_05 (MST)"
@@ -150,9 +188,9 @@ func (c *DeleteCommand) Run(args []string) int {
 	//t := time.Now()
 
 	if c.DryRun {
-		c.Ui.Info("==> DRY RUN. Had this not been a dry run, " + strconv.Itoa(len(resp.Images)) + " AMI's and their corresponding snapshots would have been deleted.")
+		c.Ui.Info("==> DRY RUN. Had this not been a dry run, " + strconv.Itoa(len(filteredAmis)) + " AMI's and their corresponding snapshots would have been deleted.")
 	} else {
-		c.Ui.Info("==> Success! Deleted " + strconv.Itoa(len(resp.Images)) + " AMI's and their corresponding snapshots.")
+		c.Ui.Info("==> Success! Deleted " + strconv.Itoa(len(filteredAmis)) + " AMI's and their corresponding snapshots.")
 	}
 	return 0
 }
