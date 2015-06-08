@@ -1,14 +1,13 @@
 package main
 
 import (
-	"time"
 	"flag"
-
-	"github.com/mitchellh/cli"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	//"os"
-	"github.com/aws/aws-sdk-go/aws"
+	"time"
 	"strings"
+
+	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/mitchellh/cli"
 )
 
 type CreateCommand struct {
