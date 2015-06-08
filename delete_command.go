@@ -190,12 +190,6 @@ func (c *DeleteCommand) Run(args []string) int {
 		c.Ui.Output("")
 	}
 
-
-	// Generate a nicely formatted timestamp for right now
-	//	const dateLayoutForAmiName = "2006-01-02 at 15_04_05 (MST)"
-	time.Now()
-	//t := time.Now()
-
 	if c.DryRun {
 		c.Ui.Info("==> DRY RUN. Had this not been a dry run, " + strconv.Itoa(len(filteredAmis)) + " AMI's and their corresponding snapshots would have been deleted.")
 	} else {
