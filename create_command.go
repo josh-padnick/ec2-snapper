@@ -7,6 +7,7 @@ import (
 	"github.com/mitchellh/cli"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	//"os"
+	"github.com/aws/aws-sdk-go/aws"
 )
 
 type CreateCommand struct {
@@ -74,17 +75,14 @@ func (c *CreateCommand) Run(args []string) int {
 
 	// Create the AMI Snapshot
 	name := c.Name + " " + t.Format(dateLayoutForAmiName)
-	instanceId := c.InstanceId
-	dryRun := c.DryRun
-	noReboot := c.NoReboot
 
-	c.Ui.Output("==> Creating AMI for " + instanceId + "...")
+	c.Ui.Output("==> Creating AMI for " + c.InstanceId + "...")
 
 	resp, err := svc.CreateImage(&ec2.CreateImageInput{
 		Name: &name,
-		InstanceID: &instanceId,
-		DryRun: &dryRun,
-		NoReboot: &noReboot })
+		InstanceID: &c.InstanceId,
+		DryRun: &c.DryRun,
+		NoReboot: &c.NoReboot })
 	if err != nil {
 		panic(err)
 	}
@@ -92,16 +90,13 @@ func (c *CreateCommand) Run(args []string) int {
 	// Assign tags to this AMI.  We'll use these when it comes time to delete the AMI
 	c.Ui.Output("==> Adding tags to AMI " + *resp.ImageID + "...")
 
-	//const dateLayoutForTags = "2006-01-02 at 15:04:05 (UTC)"
-	tagName1 := "ec2-snapper-instance-id"
-	tagName2 := "ec2-snapper-snapshot-date"
-	tagValue2 := time.Now().Format(time.RFC3339)
+	dateLayoutForTagValue := time.Now().Format(time.RFC3339)
 
 	svc.CreateTags(&ec2.CreateTagsInput{
 		Resources: []*string{resp.ImageID},
 		Tags: []*ec2.Tag{
-			&ec2.Tag{ Key: &tagName1, Value: &c.InstanceId },
-			&ec2.Tag{ Key: &tagName2, Value: &tagValue2 },
+			&ec2.Tag{ Key: aws.String("ec2-snapper-instance-id"), Value: &c.InstanceId },
+			&ec2.Tag{ Key: aws.String("ec2-snapper-snapshot-date"), Value: &dateLayoutForTagValue },
 		},
 	})
 
