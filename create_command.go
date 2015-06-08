@@ -5,7 +5,7 @@ import (
 	"flag"
 
 	"github.com/mitchellh/cli"
-	"github.com/awslabs/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/ec2"
 	//"os"
 )
 
@@ -18,10 +18,10 @@ type CreateCommand struct {
 }
 
 // descriptions for args
-const dscrInstanceId = "The instance from which to create the AMI"
-const dscrName = "The name of the AMI; the current timestamp will be automatically appended"
-const dscrDryRun = "Execute a simulated run"
-const dscrNoReboot = "If true, do not reboot the instance before creating the AMI. It is preferable to reboot the instance to guarantee a consistent filesystem when taking the snapshot, but the likelihood of an inconsistent snapshot is very low."
+var createDscrInstanceId = "The instance from which to create the AMI"
+var createDscrName = "The name of the AMI; the current timestamp will be automatically appended"
+var createDscrDryRun = "Execute a simulated run"
+var createDscrNoReboot = "If true, do not reboot the instance before creating the AMI. It is preferable to reboot the instance to guarantee a consistent filesystem when taking the snapshot, but the likelihood of an inconsistent snapshot is very low."
 
 func (c *CreateCommand) Help() string {
 	return `ec2-snapper create <args> [--help]
@@ -29,10 +29,10 @@ func (c *CreateCommand) Help() string {
 Create an AMI of the given EC2 instance.
 
 Available args are:
---instance      ` + dscrInstanceId + `
---name          ` + dscrName + `
---dry-run       ` + dscrDryRun + `
---no-reboot     ` + dscrNoReboot
+--instance      ` + createDscrInstanceId + `
+--name          ` + createDscrName + `
+--dry-run       ` + createDscrDryRun + `
+--no-reboot     ` + createDscrNoReboot
 }
 
 func (c *CreateCommand) Synopsis() string {
@@ -45,10 +45,10 @@ func (c *CreateCommand) Run(args []string) int {
 	cmdFlags := flag.NewFlagSet("create", flag.ExitOnError)
 	cmdFlags.Usage = func() { c.Ui.Output(c.Help()) }
 
-	cmdFlags.StringVar(&c.InstanceId, "instance", "", dscrInstanceId)
-	cmdFlags.StringVar(&c.Name, "name", "", dscrName)
-	cmdFlags.BoolVar(&c.DryRun, "dry-run", false, dscrDryRun)
-	cmdFlags.BoolVar(&c.NoReboot, "no-reboot", true, dscrNoReboot)
+	cmdFlags.StringVar(&c.InstanceId, "instance", "", createDscrInstanceId)
+	cmdFlags.StringVar(&c.Name, "name", "", createDscrName)
+	cmdFlags.BoolVar(&c.DryRun, "dry-run", false, createDscrDryRun)
+	cmdFlags.BoolVar(&c.NoReboot, "no-reboot", true, createDscrNoReboot)
 
 	if err := cmdFlags.Parse(args); err != nil {
 		return 1
@@ -69,11 +69,11 @@ func (c *CreateCommand) Run(args []string) int {
 	svc := ec2.New(nil)
 
 	// Generate a nicely formatted timestamp for right now
-	const layout = "2006-01-02 at 15_04_05 (MST)"
+	const dateLayoutForAmiName = "2006-01-02 at 15_04_05 (MST)"
 	t := time.Now()
 
 	// Create the AMI Snapshot
-	name := c.Name + " " + t.Format(layout)
+	name := c.Name + " " + t.Format(dateLayoutForAmiName)
 	instanceId := c.InstanceId
 	dryRun := c.DryRun
 	noReboot := c.NoReboot
@@ -90,12 +90,19 @@ func (c *CreateCommand) Run(args []string) int {
 	}
 
 	// Assign tags to this AMI.  We'll use these when it comes time to delete the AMI
-	tagName := "ec2-snapper-instance-id"
+	c.Ui.Output("==> Adding tags to AMI " + *resp.ImageID + "...")
 
-	c.Ui.Output("==> Adding tag " + tagName + " to AMI " + *resp.ImageID + "...")
+	//const dateLayoutForTags = "2006-01-02 at 15:04:05 (UTC)"
+	tagName1 := "ec2-snapper-instance-id"
+	tagName2 := "ec2-snapper-snapshot-date"
+	tagValue2 := time.Now().Format(time.RFC3339)
+
 	svc.CreateTags(&ec2.CreateTagsInput{
 		Resources: []*string{resp.ImageID},
-		Tags: []*ec2.Tag{&ec2.Tag{ Key: &tagName, Value: &c.InstanceId }},
+		Tags: []*ec2.Tag{
+			&ec2.Tag{ Key: &tagName1, Value: &c.InstanceId },
+			&ec2.Tag{ Key: &tagName2, Value: &tagValue2 },
+		},
 	})
 
 	c.Ui.Info("==> Success! Created " + *resp.ImageID + " named \"" + name + "\"")
