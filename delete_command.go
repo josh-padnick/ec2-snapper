@@ -7,8 +7,9 @@ import (
 	"github.com/mitchellh/cli"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
-//"os"
 	"strconv"
+	"strings"
+	"github.com/aws/aws-sdk-go/service/iam"
 )
 
 type DeleteCommand struct {
@@ -63,6 +64,11 @@ func (c *DeleteCommand) Run(args []string) int {
 		return 1
 	}
 
+	// Warn the user that this is a dry run
+	if c.DryRun {
+		c.Ui.Warn("WARNING: This is a dry run, and no actions will be taken, despite what any output may say!")
+	}
+
 	// Create an EC2 service object; AWS region is picked up from the "AWS_REGION" env var.
 	svc := ec2.New(nil)
 
@@ -79,59 +85,75 @@ func (c *DeleteCommand) Run(args []string) int {
 		panic(err)
 	}
 
+	// Get the AWS Account ID of the current AWS account
+	// We need this to do a more efficient lookup on the snapshot volumes
+	// - Per http://docs.aws.amazon.com/general/latest/gr/acct-identifiers.html, we assume the Account Id is always 12 digits
+	// - Per http://docs.aws.amazon.com/general/latest/gr/aws-arns-and-namespaces.html#arn-syntax-iam, we assume the current user's ARN
+	//   is always of the form arn:aws:iam::account-id:user/user-name
+	svcIam := iam.New(nil)
+
+	respIam, err := svcIam.GetUser(&iam.GetUserInput{})
+	awsAccountId := strings.Split(*respIam.User.ARN, ":")[4]
+	c.Ui.Output("==> Identified current AWS Account Id as " + awsAccountId)
+
+	// Get a list of every single snapshot in our account
+	// (I wasn't able to find a better way to filter these, but suggestions welcome!)
+	respDscrSnapshots, err := svc.DescribeSnapshots(&ec2.DescribeSnapshotsInput{
+		OwnerIDs: []*string{&awsAccountId},
+	})
+	if err != nil {
+		panic(err)
+	}
+	c.Ui.Output("==> Found " + strconv.Itoa(len(respDscrSnapshots.Snapshots)) + " snapshots in our account to search through.")
+
+	// Begin deleting AMIs...
 	if len(resp.Images) == 0 {
-		c.Ui.Error("No results!")
+		c.Ui.Error("No AMIs were found for EC2 instance \"" + c.InstanceId + "\"")
 	} else {
-		c.Ui.Info("Found " + strconv.Itoa(len(resp.Images)) + " results.")
-		c.Ui.Info(*resp.Images[0].ImageID)
+		for i := 0; i < len(resp.Images); i++ {
+			// Step 1: De-register the AMI
+			c.Ui.Output(*resp.Images[i].ImageID + ": De-registering...")
+			_, err := svc.DeregisterImage(&ec2.DeregisterImageInput{
+				DryRun: &c.DryRun,
+				ImageID: resp.Images[i].ImageID,
+			})
+			if err != nil {
+				if ! strings.Contains(err.Error(), "DryRunOperation") {
+					panic(err)
+				}
+			}
+
+			// Step 2: Delete the corresponding AMI snapshot
+			// Look at the "description" for each Snapshot to see if it contains our AMI id
+			snapshotId := ""
+			for j := 0; j < len(respDscrSnapshots.Snapshots); j++ {
+				if strings.Contains(*respDscrSnapshots.Snapshots[j].Description, *resp.Images[i].ImageID) {
+					snapshotId = *respDscrSnapshots.Snapshots[j].SnapshotID
+					break
+				}
+			}
+
+			c.Ui.Output(*resp.Images[i].ImageID + ": Deleting snapshot " + snapshotId + "...")
+			svc.DeleteSnapshot(&ec2.DeleteSnapshotInput{
+				DryRun: &c.DryRun,
+				SnapshotID: &snapshotId,
+			})
+
+			c.Ui.Output(*resp.Images[i].ImageID + ": Done!")
+			c.Ui.Output("")
+		}
 	}
 
-
-	// Get a list of all snapshots
-
-	// For each AMI
-	// - De-register the AMI
-	// - Delete the corresponding AMI snapshot
-
 	// Generate a nicely formatted timestamp for right now
-//	const dateLayoutForAmiName = "2006-01-02 at 15_04_05 (MST)"
+	//	const dateLayoutForAmiName = "2006-01-02 at 15_04_05 (MST)"
 	time.Now()
 	//t := time.Now()
-//
-//	// Create the AMI Snapshot
-//	name := c.Name + " " + t.Format(dateLayoutForAmiName)
-//	instanceId := c.InstanceId
-//	dryRun := c.DryRun
-//	noReboot := c.NoReboot
-//
-//	c.Ui.Output("==> Creating AMI for " + instanceId + "...")
-//
-//	resp, err := svc.CreateImage(&ec2.CreateImageInput{
-//		Name: &name,
-//		InstanceID: &instanceId,
-//		DryRun: &dryRun,
-//		NoReboot: &noReboot })
-//	if err != nil {
-//		panic(err)
-//	}
-//
-//	// Assign tags to this AMI.  We'll use these when it comes time to delete the AMI
-//	c.Ui.Output("==> Adding tags to AMI " + *resp.ImageID + "...")
-//
-//	//const dateLayoutForTags = "2006-01-02 at 15:04:05 (UTC)"
-//	tagName1 := "ec2-snapper-instance-id"
-//	tagName2 := "ec2-snapper-snapshot-date"
-//	tagValue2 := time.Now().Format(time.RFC3339)
-//
-//	svc.CreateTags(&ec2.CreateTagsInput{
-//		Resources: []*string{resp.ImageID},
-//		Tags: []*ec2.Tag{
-//			&ec2.Tag{ Key: &tagName1, Value: &c.InstanceId },
-//			&ec2.Tag{ Key: &tagName2, Value: &tagValue2 },
-//		},
-//	})
 
-	c.Ui.Info("==> Success! Deleted a bunch of things.")
+	if c.DryRun {
+		c.Ui.Info("==> DRY RUN. Had this not been a dry run, " + strconv.Itoa(len(resp.Images)) + " AMI's and their corresponding snapshots would have been deleted.")
+	} else {
+		c.Ui.Info("==> Success! Deleted " + strconv.Itoa(len(resp.Images)) + " AMI's and their corresponding snapshots.")
+	}
 	return 0
 }
 
