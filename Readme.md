@@ -1,6 +1,6 @@
 # ec2-snapper
 
-ec2-snapper is a simple command-line tool for creating and deleting AMI's of your EC2 instances.  It was designed to make it easy to delete all AMI's for a given instance which are older than X days/hours/minutes.  It works especially well as part of a cronjob.
+ec2-snapper is a simple command-line tool for creating and deleting AMI's of your EC2 instances.  It was designed to make it easy to delete all AMI's for a given EC2 instance which are older than X days/hours/minutes.  It works especially well as part of a cronjob.
 
 ## Download
 Download the latest version using the links below:
@@ -20,12 +20,13 @@ One of the best parts of working with EC2 instances is you can create a snapshot
 
 1. Deleting an AMI is a two-part process.  First, you have to de-register the AMI.  Then you have to delete the corresponding EBS volume snapshot.
 
-2. Find the corresponding snapshot is cumbersome.
+2. Finding the corresponding snapshot is cumbersome.
 
 3. There's no out-of-the-box way to delete all AMI's older than X days.
 
 I wrote ec2-snapper so I could use a simple command-line tool to create snapshots, delete them with one command, and delete ones older than a certain age.  It works especially well when run as a cronjob on a nightly basis.
 
+I personally use it to backup my Wordpress blog which is running as a single EC2 instance.  If my EC2 instance were to fail, I can instantly launch a new EC2 instance from the latest snapshot.  Since I run ec2-snapper nightly, I'm subject to up to 24 hours of data loss, which is tolerable for my needs.
 
 ## Prerequisites
 
@@ -41,11 +42,13 @@ Common USA regions are:
 - North California = `us-west-1`
 - Oregon = `us-west-2`
 
+_*Tip: To export an environment variable on most linux distro's, edit the file `/etc/environment`.  You may need to reboot before this takes effect, or you can try the command `. /etc/environment` to apply the changes immediately.*_
+
 ### 2. Setup Your AWS Credentials
 You will also need to authenticate to AWS.
 
 #### Option 1: Set Environment Variables
-One option is to authenticate using the following environment variables:
+One option is to authenticate by exporting the following environment variables:
 
 ```
 AWS_ACCESS_KEY_ID=AKID1234567890
@@ -56,7 +59,7 @@ AWS_SECRET_ACCESS_KEY=MY-SECRET-KEY
 If you're running ec2-snapper on an Amazon EC2 instance, the preferred way to authenticate is by assigning an [IAM Role](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html) to your EC2 instance.  Note that IAM roles can only be assigned when an EC2 instance is being launched, and not after the fact.
 
 #### Account Permissions
-Whichever method you use to authenticate, your account will need the limited set of IAM permissions in this IAM policy:
+Whichever method you use to authenticate, the AWS account you use to authenticate will need the limited set of IAM permissions in this IAM policy:
 
 ```
 {
