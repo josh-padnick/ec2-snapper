@@ -1,6 +1,6 @@
 # ec2-snapper
 
-ec2-snapper is a simple command-line tool for creating and deleting AMI's of your EC2 instances.  It was designed to make deleting AMI's older than X days/hours/minutes easy.  It works especially well as part of a cronjob.
+ec2-snapper is a simple command-line tool for creating and deleting AMI's of your EC2 instances.  It was designed to make it easy to delete all AMI's for a given instance which are older than X days/hours/minutes.  It works especially well as part of a cronjob.
 
 ## Download
 Download the latest version using the links below:
