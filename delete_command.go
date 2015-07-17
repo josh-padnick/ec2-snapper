@@ -50,7 +50,7 @@ func (c *DeleteCommand) Run(args []string) int {
 
 	cmdFlags.StringVar(&c.InstanceId, "instance", "", deleteDscrInstanceId)
 	cmdFlags.StringVar(&c.OlderThan, "older-than", "", deleteOlderThan)
-	cmdFlags.IntVar(&c.RequireAtLeast, "require-at-least", "", requireAtLeast)
+	cmdFlags.IntVar(&c.RequireAtLeast, "require-at-least", 0, requireAtLeast)
 	cmdFlags.BoolVar(&c.DryRun, "dry-run", false, deleteDscrDryRun)
 
 	if err := cmdFlags.Parse(args); err != nil {
@@ -68,7 +68,7 @@ func (c *DeleteCommand) Run(args []string) int {
 		return 1
 	}
 
-	if c.OlderThan < 0 {
+	if c.RequireAtLeast < 0 {
 		c.Ui.Error("ERROR: The argument '--require-at-least' must be a positive integer.")
 		return 1
 	}
@@ -103,7 +103,7 @@ func (c *DeleteCommand) Run(args []string) int {
 
 	// Check that at least the --require-at-least number of AMIs exists
 	if len(resp.Images) <= c.RequireAtLeast {
-		c.Ui.Info( len(resp.Images) + " AMIs exist and --require-at-least=" + c.RequireAtLeast + " so no further action should be taken.")
+		c.Ui.Info("NO ACTION TAKEN. There are currently " + strconv.Itoa(len(resp.Images)) + " AMIs, and --require-at-least=" + strconv.Itoa(c.RequireAtLeast) + " so no further action can be taken.")
 		return 0
 	}
 
