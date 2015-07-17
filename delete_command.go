@@ -13,15 +13,17 @@ import (
 )
 
 type DeleteCommand struct {
-	Ui 			cli.Ui
-	InstanceId 	string
-	OlderThan 	string
-	DryRun		bool
+	Ui 				cli.Ui
+	InstanceId 		string
+	OlderThan 		string
+	RequireAtLeast	int
+	DryRun			bool
 }
 
 // descriptions for args
-var deleteDscrInstanceId = "The EC2 instance from which the AMIs to be deleted were originally created"
-var deleteOlderThan = "Delete AMIs older than the specified time; accepts formats like '30d' or '4h'"
+var deleteDscrInstanceId = "The EC2 instance from which the AMIs to be deleted were originally created."
+var deleteOlderThan = "Delete AMIs older than the specified time; accepts formats like '30d' or '4h'."
+var requireAtLeast = "Never delete AMIs such that fewer than this number of AMIs will remain. E.g. require at least 3 AMIs remain."
 var deleteDscrDryRun = "Execute a simulated run. Lists AMIs to be deleted, but does not actually delete them."
 
 func (c *DeleteCommand) Help() string {
@@ -30,9 +32,10 @@ func (c *DeleteCommand) Help() string {
 Create an AMI of the given EC2 instance.
 
 Available args are:
---instance      ` + deleteDscrInstanceId + `
---older-than    ` + deleteOlderThan + `
---dry-run       ` + deleteDscrDryRun
+--instance      	` + deleteDscrInstanceId + `
+--older-than    	` + deleteOlderThan + `
+--require-at-least  ` + requireAtLeast + `
+--dry-run       	` + deleteDscrDryRun
 }
 
 func (c *DeleteCommand) Synopsis() string {
@@ -47,6 +50,7 @@ func (c *DeleteCommand) Run(args []string) int {
 
 	cmdFlags.StringVar(&c.InstanceId, "instance", "", deleteDscrInstanceId)
 	cmdFlags.StringVar(&c.OlderThan, "older-than", "", deleteOlderThan)
+	cmdFlags.IntVar(&c.RequireAtLeast, "require-at-least", "", requireAtLeast)
 	cmdFlags.BoolVar(&c.DryRun, "dry-run", false, deleteDscrDryRun)
 
 	if err := cmdFlags.Parse(args); err != nil {
@@ -64,6 +68,11 @@ func (c *DeleteCommand) Run(args []string) int {
 		return 1
 	}
 
+	if c.OlderThan < 0 {
+		c.Ui.Error("ERROR: The argument '--require-at-least' must be a positive integer.")
+		return 1
+	}
+
 	// Warn the user that this is a dry run
 	if c.DryRun {
 		c.Ui.Warn("WARNING: This is a dry run, and no actions will be taken, despite what any output may say!")
@@ -72,7 +81,7 @@ func (c *DeleteCommand) Run(args []string) int {
 	// Create an EC2 service object; AWS region is picked up from the "AWS_REGION" env var.
 	svc := ec2.New(nil)
 
-	// Get a list of the existing AMIs that were created for the given EC2 instances
+	// Get a list of the existing AMIs that were created for the given EC2 instance
 	resp, err := svc.DescribeImages(&ec2.DescribeImagesInput{
 		Filters: []*ec2.Filter{
 			&ec2.Filter{
@@ -89,6 +98,12 @@ func (c *DeleteCommand) Run(args []string) int {
 	}
 	if len(resp.Images) == 0 {
 		c.Ui.Error("No AMIs were found for EC2 instance \"" + c.InstanceId + "\"")
+		return 0
+	}
+
+	// Check that at least the --require-at-least number of AMIs exists
+	if len(resp.Images) <= c.RequireAtLeast {
+		c.Ui.Info( len(resp.Images) + " AMIs exist and --require-at-least=" + c.RequireAtLeast + " so no further action should be taken.")
 		return 0
 	}
 
