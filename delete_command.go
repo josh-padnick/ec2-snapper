@@ -10,6 +10,7 @@ import (
 	"github.com/mitchellh/cli"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"math"
 )
 
 type DeleteCommand struct {
@@ -102,6 +103,7 @@ func (c *DeleteCommand) Run(args []string) int {
 	}
 
 	// Check that at least the --require-at-least number of AMIs exists
+	// - Note that even if this passes, we still want to avoid deleting so many AMIs that we go below the threshold
 	if len(resp.Images) <= c.RequireAtLeast {
 		c.Ui.Info("NO ACTION TAKEN. There are currently " + strconv.Itoa(len(resp.Images)) + " AMIs, and --require-at-least=" + strconv.Itoa(c.RequireAtLeast) + " so no further action can be taken.")
 		return 0
@@ -171,8 +173,18 @@ func (c *DeleteCommand) Run(args []string) int {
 	}
 	c.Ui.Output("==> Found " + strconv.Itoa(len(respDscrSnapshots.Snapshots)) + " total snapshots in this account.")
 
+	// Compute whether we should delete fewer AMIs to adhere to our --require-at-least requirement
+	var numTotalAmis = len(resp.Images)
+	var numFilteredAmis = len(filteredAmis)
+	var numAmisToRemainAfterDelete = numTotalAmis - numFilteredAmis
+	var numAmisToRemoveFromFiltered = math.Max(0.0, float64(c.RequireAtLeast - numAmisToRemainAfterDelete))
+
+	if numAmisToRemoveFromFiltered > 0.0 {
+		c.Ui.Output("==> Only deleting " + strconv.Itoa(len(filteredAmis) - int(numAmisToRemoveFromFiltered)) + " total AMIs to honor '--require-at-least=" + strconv.Itoa(c.RequireAtLeast) + "'.")
+	}
+
 	// Begin deleting AMIs...
-	for i := 0; i < len(filteredAmis); i++ {
+	for i := 0; i < len(filteredAmis) - int(numAmisToRemoveFromFiltered); i++ {
 		// Step 1: De-register the AMI
 		c.Ui.Output(*filteredAmis[i].ImageID + ": De-registering AMI named \"" + *filteredAmis[i].Name + "\"...")
 		_, err := svc.DeregisterImage(&ec2.DeregisterImageInput{
@@ -208,7 +220,7 @@ func (c *DeleteCommand) Run(args []string) int {
 	if c.DryRun {
 		c.Ui.Info("==> DRY RUN. Had this not been a dry run, " + strconv.Itoa(len(filteredAmis)) + " AMI's and their corresponding snapshots would have been deleted.")
 	} else {
-		c.Ui.Info("==> Success! Deleted " + strconv.Itoa(len(filteredAmis)) + " AMI's and their corresponding snapshots.")
+		c.Ui.Info("==> Success! Deleted " + strconv.Itoa(len(filteredAmis) - int(numAmisToRemoveFromFiltered)) + " AMI's and their corresponding snapshots.")
 	}
 	return 0
 }
