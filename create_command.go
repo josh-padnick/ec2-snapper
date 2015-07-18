@@ -104,7 +104,7 @@
 			},
 		})
 
-		// Per https://github.com/josh-padnick/ec2-snapper/issues/1, we need to confirm that tags were actually added
+		// Check the status of the AMI
 		respDscrImages, err := svc.DescribeImages(&ec2.DescribeImagesInput{
 			Filters: []*ec2.Filter{
 				&ec2.Filter{
@@ -127,18 +127,6 @@
 		if *respDscrImages.Images[0].State == "failed" {
 			c.Ui.Error("ERROR: AMI was crexated but entered a state of 'failed'. This is an AWS issue. Please re-run this command.  Note that you will need to manually de-register the AMI in the AWS console or via the API.")
 			return 1
-		}
-
-		// If we found the AMI but the tags themselves were not present, add them.
-		tags := respDscrImages.Images[0].Tags
-		if len(tags) > 0 && *tags[0].Key != "ec2-snapper-instance-id" {
-			c.Ui.Output("==> AMI was created successfully, but tags were not added. Attempting to re-add tags...")
-			svc.CreateTags(&ec2.CreateTagsInput{
-				Resources: []*string{resp.ImageID},
-				Tags: []*ec2.Tag{
-					&ec2.Tag{ Key: aws.String("ec2-snapper-instance-id"), Value: &c.InstanceId },
-				},
-			})
 		}
 
 		// Announce success
