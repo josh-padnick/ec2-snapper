@@ -35,7 +35,7 @@ Create an AMI of the given EC2 instance.
 Available args are:
 --instance      	` + deleteDscrInstanceId + `
 --older-than    	` + deleteOlderThan + `
---require-at-least  ` + requireAtLeast + `
+--require-at-least      ` + requireAtLeast + `
 --dry-run       	` + deleteDscrDryRun
 }
 

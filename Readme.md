@@ -116,6 +116,8 @@ You must specify the EC2 instance ID (e.g. `i-c724be30`) originally used to crea
 
 `--older-than` accepts time values like `30d`, `5h` or `15m` for 30 days, 5 hours, or 15 minutes, respectively.  For example, `--older-than=30d` tells ec2-snapper to delete any AMI for the given EC2 instance that is older than 30 days.
 
+`--require-at-least` ensures that in no event will there be fewer than the specified number of total AMIs for this instance.  For example, `--require-at-least=5` tells ec2-snapper to always make sure there are at least 5 total AMIs for the given instance, even if these AMIs are marked for deletion based on the `--older-than` command.
+
 `--dry-run` will list the AMIs that would have been deleted, but does not actually delete them.
 
 ## Contributors
