@@ -100,6 +100,8 @@
 			Resources: []*string{resp.ImageID},
 			Tags: []*ec2.Tag{
 				&ec2.Tag{ Key: aws.String("ec2-snapper-instance-id"), Value: &c.InstanceId },
+				&*ec2.Tag{
+				&ec2.Tag{ Key: aws.String("Name"), Value: &c.Name },
 			},
 		})
 
