@@ -83,6 +83,8 @@ Whichever method you use to authenticate, the AWS account you use to authenticat
 }
 ```
 
+## Installation
+There's nothing to install.  Just download the binary and run it using the commands you see below.
 
 ## Usage
 Try any of the following commands to get a full list of all arguments:
