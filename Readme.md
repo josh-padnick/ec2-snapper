@@ -5,12 +5,12 @@ ec2-snapper is a simple command-line tool for creating and deleting AMI's of you
 ## Download
 Download the latest version using the links below:
 
-- [ec2-snapper for Linux 64-bit](https://s3-us-west-2.amazonaws.com/phxdevops-tmp/ec2-snapper/0.2.0/linux_amd64/ec2-snapper)
-- [ec2-snapper for Linux 32-bit](https://s3-us-west-2.amazonaws.com/phxdevops-tmp/ec2-snapper/0.2.0/linux_386/ec2-snapper)
-- [ec2-snapper for Mac/OS X 64-bit](https://s3-us-west-2.amazonaws.com/phxdevops-tmp/ec2-snapper/0.2.0/darwin_amd64/ec2-snapper)
-- [ec2-snapper for Mac/OS X 32-bit](https://s3-us-west-2.amazonaws.com/phxdevops-tmp/ec2-snapper/0.2.0/darwin_386/ec2-snapper)
-- [ec2-snapper for Windows 64-bit](https://s3-us-west-2.amazonaws.com/phxdevops-tmp/ec2-snapper/0.2.0/windows_amd64/ec2-snapper.exe)
-- [ec2-snapper for Windows 32-bit](https://s3-us-west-2.amazonaws.com/phxdevops-tmp/ec2-snapper/0.2.0/windows_386/ec2-snapper.exe)
+- [ec2-snapper for Linux 64-bit](https://bintray.com/artifact/download/josh-padnick/generic/v0.2.0/linux_amd64/ec2-snapper)
+- [ec2-snapper for Linux 32-bit](https://bintray.com/artifact/download/josh-padnick/generic/v0.2.0/linux_386/ec2-snapper)
+- [ec2-snapper for Mac/OS X 64-bit](https://bintray.com/artifact/download/josh-padnick/generic/v0.2.0/darwin_amd64/ec2-snapper)
+- [ec2-snapper for Mac/OS X 32-bit](https://bintray.com/artifact/download/josh-padnick/generic/v0.2.0/darwin_386/ec2-snapper)
+- [ec2-snapper for Windows 64-bit](https://bintray.com/artifact/download/josh-padnick/generic/v0.2.0/windows_amd64/ec2-snapper.exe)
+- [ec2-snapper for Windows 32-bit](https://bintray.com/artifact/download/josh-padnick/generic/v0.2.0/windows_386/ec2-snapper.exe)
 
 ## Motivation
 For the full story, see the [Motivating Blog Post](https://joshpadnick.com/2015/06/18/a-simple-tool-for-snapshotting-your-ec2-instances/).
