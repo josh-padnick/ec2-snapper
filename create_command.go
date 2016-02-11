@@ -124,7 +124,7 @@
 
 		// If the AMI's status is failed throw an error
 		if *respDscrImages.Images[0].State == "failed" {
-			c.Ui.Error("ERROR: AMI was crexated but entered a state of 'failed'. This is an AWS issue. Please re-run this command.  Note that you will need to manually de-register the AMI in the AWS console or via the API.")
+			c.Ui.Error("ERROR: AMI was created but entered a state of 'failed'. This is an AWS issue. Please re-run this command.  Note that you will need to manually de-register the AMI in the AWS console or via the API.")
 			return 1
 		}
 
