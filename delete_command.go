@@ -156,7 +156,7 @@ func (c *DeleteCommand) Run(args []string) int {
 			filteredAmis = append(filteredAmis, resp.Images[i])
 		}
 	}
-	c.Ui.Output("==> Found " + strconv.Itoa(len(filteredAmis)) + " total AMIs for deletion.")
+	c.Ui.Output("==> Found " + strconv.Itoa(len(filteredAmis)) + " total AMI(s) for deletion.")
 
 	if len(filteredAmis) == 0 {
 		c.Ui.Error("No AMIs to delete.")
@@ -199,19 +199,22 @@ func (c *DeleteCommand) Run(args []string) int {
 
 		// Step 2: Delete the corresponding AMI snapshot
 		// Look at the "description" for each Snapshot to see if it contains our AMI id
-		snapshotId := ""
-		for j := 0; j < len(respDscrSnapshots.Snapshots); j++ {
-			if strings.Contains(*respDscrSnapshots.Snapshots[j].Description, *filteredAmis[i].ImageID) {
-				snapshotId = *respDscrSnapshots.Snapshots[j].SnapshotID
-				break
+		var snapshotIds []string
+		for _, snapshot := range respDscrSnapshots.Snapshots {
+			if strings.Contains(*snapshot.Description, *filteredAmis[i].ImageID) {
+				snapshotIds = append(snapshotIds, *snapshot.SnapshotID)
 			}
 		}
 
-		c.Ui.Output(*filteredAmis[i].ImageID + ": Deleting snapshot " + snapshotId + "...")
-		svc.DeleteSnapshot(&ec2.DeleteSnapshotInput{
-			DryRun: &c.DryRun,
-			SnapshotID: &snapshotId,
-		})
+		// Delete all snapshots that were found
+		c.Ui.Output(*filteredAmis[i].ImageID + ": Found " + strconv.Itoa(len(snapshotIds)) + " snapshot(s) to delete")
+		for _, snapshotId := range snapshotIds {
+			c.Ui.Output(*filteredAmis[i].ImageID + ": Deleting snapshot " + snapshotId + "...")
+			svc.DeleteSnapshot(&ec2.DeleteSnapshotInput{
+				DryRun: &c.DryRun,
+				SnapshotID: &snapshotId,
+			})
+		}
 
 		c.Ui.Output(*filteredAmis[i].ImageID + ": Done!")
 		c.Ui.Output("")
