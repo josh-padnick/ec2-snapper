@@ -11,7 +11,7 @@ import (
 )
 
 type CreateCommand struct {
-	Ui 			cli.Ui
+	Ui 		cli.Ui
 	InstanceId 	string
 	Name 		string
 	DryRun		bool

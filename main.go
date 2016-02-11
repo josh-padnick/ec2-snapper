@@ -42,6 +42,11 @@ func main() {
 				},
 			}, nil
 		},
+		"version": func() (cli.Command, error) {
+			return &VersionCommand{
+				cliRef: *c,
+			}, nil
+		},
 	}
 
 	// Confirm that AWS credentials are set as environment
