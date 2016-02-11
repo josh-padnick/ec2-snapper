@@ -9,15 +9,16 @@ import (
 
 	"github.com/mitchellh/cli"
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"math"
 )
 
 type DeleteCommand struct {
-	Ui 				cli.Ui
+	Ui 			cli.Ui
 	InstanceId 		string
 	OlderThan 		string
-	RequireAtLeast	int
+	RequireAtLeast		int
 	DryRun			bool
 }
 
@@ -80,7 +81,8 @@ func (c *DeleteCommand) Run(args []string) int {
 	}
 
 	// Create an EC2 service object; AWS region is picked up from the "AWS_REGION" env var.
-	svc := ec2.New(nil)
+	session := session.New()
+	svc := ec2.New(session)
 
 	// Get a list of the existing AMIs that were created for the given EC2 instance
 	resp, err := svc.DescribeImages(&ec2.DescribeImagesInput{
@@ -111,7 +113,7 @@ func (c *DeleteCommand) Run(args []string) int {
 
 	// Get the AWS Account ID of the current AWS account
 	// We need this to do a more efficient lookup on the snapshot volumes
-	awsAccountId := *resp.Images[0].OwnerID
+	awsAccountId := *resp.Images[0].OwnerId
 	c.Ui.Output("==> Identified current AWS Account Id as " + awsAccountId)
 
 	// Parse our date range
@@ -166,7 +168,7 @@ func (c *DeleteCommand) Run(args []string) int {
 	// Get a list of every single snapshot in our account
 	// (I wasn't able to find a better way to filter these, but suggestions welcome!)
 	respDscrSnapshots, err := svc.DescribeSnapshots(&ec2.DescribeSnapshotsInput{
-		OwnerIDs: []*string{&awsAccountId},
+		OwnerIds: []*string{&awsAccountId},
 	})
 	if err != nil {
 		panic(err)
@@ -186,10 +188,10 @@ func (c *DeleteCommand) Run(args []string) int {
 	// Begin deleting AMIs...
 	for i := 0; i < len(filteredAmis) - int(numAmisToRemoveFromFiltered); i++ {
 		// Step 1: De-register the AMI
-		c.Ui.Output(*filteredAmis[i].ImageID + ": De-registering AMI named \"" + *filteredAmis[i].Name + "\"...")
+		c.Ui.Output(*filteredAmis[i].ImageId + ": De-registering AMI named \"" + *filteredAmis[i].Name + "\"...")
 		_, err := svc.DeregisterImage(&ec2.DeregisterImageInput{
 			DryRun: &c.DryRun,
-			ImageID: filteredAmis[i].ImageID,
+			ImageId: filteredAmis[i].ImageId,
 		})
 		if err != nil {
 			if ! strings.Contains(err.Error(), "DryRunOperation") {
@@ -201,22 +203,22 @@ func (c *DeleteCommand) Run(args []string) int {
 		// Look at the "description" for each Snapshot to see if it contains our AMI id
 		var snapshotIds []string
 		for _, snapshot := range respDscrSnapshots.Snapshots {
-			if strings.Contains(*snapshot.Description, *filteredAmis[i].ImageID) {
-				snapshotIds = append(snapshotIds, *snapshot.SnapshotID)
+			if strings.Contains(*snapshot.Description, *filteredAmis[i].ImageId) {
+				snapshotIds = append(snapshotIds, *snapshot.SnapshotId)
 			}
 		}
 
 		// Delete all snapshots that were found
-		c.Ui.Output(*filteredAmis[i].ImageID + ": Found " + strconv.Itoa(len(snapshotIds)) + " snapshot(s) to delete")
+		c.Ui.Output(*filteredAmis[i].ImageId + ": Found " + strconv.Itoa(len(snapshotIds)) + " snapshot(s) to delete")
 		for _, snapshotId := range snapshotIds {
-			c.Ui.Output(*filteredAmis[i].ImageID + ": Deleting snapshot " + snapshotId + "...")
+			c.Ui.Output(*filteredAmis[i].ImageId + ": Deleting snapshot " + snapshotId + "...")
 			svc.DeleteSnapshot(&ec2.DeleteSnapshotInput{
 				DryRun: &c.DryRun,
-				SnapshotID: &snapshotId,
+				SnapshotId: &snapshotId,
 			})
 		}
 
-		c.Ui.Output(*filteredAmis[i].ImageID + ": Done!")
+		c.Ui.Output(*filteredAmis[i].ImageId + ": Done!")
 		c.Ui.Output("")
 	}
 

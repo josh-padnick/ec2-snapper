@@ -5,8 +5,9 @@ import (
 	"time"
 	"strings"
 
-	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/mitchellh/cli"
 )
 
@@ -67,7 +68,8 @@ func (c *CreateCommand) Run(args []string) int {
 	}
 
 	// Create an EC2 service object; AWS region is picked up from the "AWS_REGION" env var.
-	svc := ec2.New(nil)
+	session := session.New()
+	svc := ec2.New(session)
 
 	// Generate a nicely formatted timestamp for right now
 	const dateLayoutForAmiName = "2006-01-02 at 15_04_05 (MST)"
@@ -80,7 +82,7 @@ func (c *CreateCommand) Run(args []string) int {
 
 	resp, err := svc.CreateImage(&ec2.CreateImageInput{
 		Name: &name,
-		InstanceID: &c.InstanceId,
+		InstanceId: &c.InstanceId,
 		DryRun: &c.DryRun,
 		NoReboot: &c.NoReboot })
 	if err != nil && strings.Contains(err.Error(), "NoCredentialProviders") {
@@ -94,10 +96,10 @@ func (c *CreateCommand) Run(args []string) int {
 	time.Sleep(3000 * time.Millisecond)
 
 	// Assign tags to this AMI.  We'll use these when it comes time to delete the AMI
-	c.Ui.Output("==> Adding tags to AMI " + *resp.ImageID + "...")
+	c.Ui.Output("==> Adding tags to AMI " + *resp.ImageId + "...")
 
 	svc.CreateTags(&ec2.CreateTagsInput{
-		Resources: []*string{resp.ImageID},
+		Resources: []*string{resp.ImageId},
 		Tags: []*ec2.Tag{
 			&ec2.Tag{ Key: aws.String("ec2-snapper-instance-id"), Value: &c.InstanceId },
 			&ec2.Tag{ Key: aws.String("Name"), Value: &c.Name },
@@ -109,7 +111,7 @@ func (c *CreateCommand) Run(args []string) int {
 		Filters: []*ec2.Filter{
 			&ec2.Filter{
 				Name: aws.String("image-id"),
-				Values: []*string{resp.ImageID},
+				Values: []*string{resp.ImageId},
 			},
 		},
 	})
@@ -130,7 +132,7 @@ func (c *CreateCommand) Run(args []string) int {
 	}
 
 	// Announce success
-	c.Ui.Info("==> Success! Created " + *resp.ImageID + " named \"" + name + "\"")
+	c.Ui.Info("==> Success! Created " + *resp.ImageId + " named \"" + name + "\"")
 	return 0
 }
 
