@@ -1,4 +1,4 @@
-# 0.3.0 (July 17, 2015)
+# 0.3.0 (February 11, 2016)
 
 * ENHANCEMENT: Created AMIs now include the specified name in the `Name` tag. [GH-4](https://github.com/josh-padnick/ec2-snapper/pull/4)
 * ENHANCEMENT: Added `ec2-snapper version` subcommand.
