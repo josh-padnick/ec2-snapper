@@ -16,7 +16,7 @@ func main() {
 	}
 
 	// CLI stuff
-	c := cli.NewCLI("ec2-snapper", "1.0.0")
+	c := cli.NewCLI("ec2-snapper", "0.3.0")
 	c.Args = os.Args[1:]
 
 	c.Commands = map[string]cli.CommandFactory{
@@ -40,6 +40,11 @@ func main() {
 					WarnColor:   cli.UiColorYellow,
 					InfoColor:   cli.UiColorGreen,
 				},
+			}, nil
+		},
+		"version": func() (cli.Command, error) {
+			return &VersionCommand{
+				cliRef: *c,
 			}, nil
 		},
 	}

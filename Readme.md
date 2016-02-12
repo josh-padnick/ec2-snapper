@@ -1,16 +1,16 @@
 # ec2-snapper
 
-ec2-snapper is a simple command-line tool for creating and deleting AMI's of your EC2 instances.  It was designed to make it easy to delete all AMI's for a given EC2 instance which are older than X days/hours/minutes.  It works especially well as part of a cronjob.
+ec2-snapper is a simple command-line tool for creating and deleting AMI's of your EC2 instances.  It was designed to make it easy to delete all AMI's (and their corresponding Snapshots) for a given EC2 instance which are older than X days/hours/minutes.  It works especially well as part of a cronjob.
 
 ## Download
 Download the latest version using the links below:
 
-- [ec2-snapper for Linux 64-bit](https://bintray.com/artifact/download/josh-padnick/generic/v0.2.0/linux_amd64/ec2-snapper)
-- [ec2-snapper for Linux 32-bit](https://bintray.com/artifact/download/josh-padnick/generic/v0.2.0/linux_386/ec2-snapper)
-- [ec2-snapper for Mac/OS X 64-bit](https://bintray.com/artifact/download/josh-padnick/generic/v0.2.0/darwin_amd64/ec2-snapper)
-- [ec2-snapper for Mac/OS X 32-bit](https://bintray.com/artifact/download/josh-padnick/generic/v0.2.0/darwin_386/ec2-snapper)
-- [ec2-snapper for Windows 64-bit](https://bintray.com/artifact/download/josh-padnick/generic/v0.2.0/windows_amd64/ec2-snapper.exe)
-- [ec2-snapper for Windows 32-bit](https://bintray.com/artifact/download/josh-padnick/generic/v0.2.0/windows_386/ec2-snapper.exe)
+- [ec2-snapper for Linux 64-bit](https://bintray.com/artifact/download/josh-padnick/generic/v0.3.0/linux_amd64/ec2-snapper)
+- [ec2-snapper for Linux 32-bit](https://bintray.com/artifact/download/josh-padnick/generic/v0.3.0/linux_386/ec2-snapper)
+- [ec2-snapper for Mac/OS X 64-bit](https://bintray.com/artifact/download/josh-padnick/generic/v0.3.0/darwin_amd64/ec2-snapper)
+- [ec2-snapper for Mac/OS X 32-bit](https://bintray.com/artifact/download/josh-padnick/generic/v0.3.0/darwin_386/ec2-snapper)
+- [ec2-snapper for Windows 64-bit](https://bintray.com/artifact/download/josh-padnick/generic/v0.3.0/windows_amd64/ec2-snapper.exe)
+- [ec2-snapper for Windows 32-bit](https://bintray.com/artifact/download/josh-padnick/generic/v0.3.0/windows_386/ec2-snapper.exe)
 
 ## Motivation
 For the full story, see the [Motivating Blog Post](https://joshpadnick.com/2015/06/18/a-simple-tool-for-snapshotting-your-ec2-instances/).
@@ -95,8 +95,18 @@ Try any of the following commands to get a full list of all arguments:
 ./ec2-snapper delete --help
 ```
 
-### Create an AMI
+## Get the Version
 ```
+ec2-snapper version
+```
+
+Returns the current version you're using of ec2-snapper.
+
+### Create an AMI
+For all options, run ```ec2-snapper create --help```.
+
+```
+Example:
 ec2-snapper create --instance=i-c724be30 --name=MyEc2Instance --dry-run --no-reboot
 ```
 You must specify the EC2 instance ID (e.g. `i-c724be30`) to be snapshotted, and give it a name such as "MyWebsite.com".  A current timestamp will automatically be appended to the name.  
@@ -110,7 +120,10 @@ Adding `--dry-run` will simulate the command without actually taking a snapshot.
 Note that the last two args can either be written as `--dry-run` or `--dry-run=true`.  
 
 ### Delete AMIs older than X days / Y hours / Z minutes
+For all options, run ```ec2-snapper delete --help```.
+
 ```
+Example:
 ec2-snapper delete --instance=i-c724b30 --older-than=30d --dry-run
 ```
 You must specify the EC2 instance ID (e.g. `i-c724be30`) originally used to create the AMIs you wish to delete, even if that EC2 instance has since been stopped or terminated.  
