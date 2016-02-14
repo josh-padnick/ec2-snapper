@@ -95,7 +95,7 @@ Try any of the following commands to get a full list of all arguments:
 ./ec2-snapper delete --help
 ```
 
-## Get the Version
+### Get the Version
 ```
 ec2-snapper version
 ```
