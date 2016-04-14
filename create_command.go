@@ -9,10 +9,12 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/mitchellh/cli"
+	"errors"
 )
 
 type CreateCommand struct {
 	Ui 		cli.Ui
+	AwsRegion 	string
 	InstanceId 	string
 	Name 		string
 	DryRun		bool
@@ -20,6 +22,7 @@ type CreateCommand struct {
 }
 
 // descriptions for args
+var createDscrAwsRegion = "The AWS region to use (e.g. us-west-2)"
 var createDscrInstanceId = "The instance from which to create the AMI"
 var createDscrName = "The name of the AMI; the current timestamp will be automatically appended"
 var createDscrDryRun = "Execute a simulated run"
@@ -31,6 +34,7 @@ func (c *CreateCommand) Help() string {
 Create an AMI of the given EC2 instance.
 
 Available args are:
+--region      ` + createDscrAwsRegion + `
 --instance      ` + createDscrInstanceId + `
 --name          ` + createDscrName + `
 --dry-run       ` + createDscrDryRun + `
@@ -47,6 +51,7 @@ func (c *CreateCommand) Run(args []string) int {
 	cmdFlags := flag.NewFlagSet("create", flag.ExitOnError)
 	cmdFlags.Usage = func() { c.Ui.Output(c.Help()) }
 
+	cmdFlags.StringVar(&c.AwsRegion, "region", "", createDscrAwsRegion)
 	cmdFlags.StringVar(&c.InstanceId, "instance", "", createDscrInstanceId)
 	cmdFlags.StringVar(&c.Name, "name", "", createDscrName)
 	cmdFlags.BoolVar(&c.DryRun, "dry-run", false, createDscrDryRun)
@@ -56,19 +61,32 @@ func (c *CreateCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Check for required command-line args
-	if c.InstanceId == "" {
-		c.Ui.Error("ERROR: The argument '--instance' is required.")
+	if _, err := create(*c); err != nil {
+		c.Ui.Error(err.Error())
 		return 1
+	}
+
+	return 0
+}
+
+func create(c CreateCommand) (string, error) {
+	snapshotId := ""
+
+	// Check for required command-line args
+	if c.AwsRegion == "" {
+		return snapshotId, errors.New("ERROR: The argument '--region' is required.")
+	}
+
+	if c.InstanceId == "" {
+		return snapshotId, errors.New("ERROR: The argument '--instance' is required.")
 	}
 
 	if c.Name == "" {
-		c.Ui.Error("ERROR: The argument '--name' is required.")
-		return 1
+		return snapshotId, errors.New("ERROR: The argument '--name' is required.")
 	}
 
 	// Create an EC2 service object; AWS region is picked up from the "AWS_REGION" env var.
-	session := session.New()
+	session := session.New(&aws.Config{Region: &c.AwsRegion})
 	svc := ec2.New(session)
 
 	// Generate a nicely formatted timestamp for right now
@@ -86,53 +104,54 @@ func (c *CreateCommand) Run(args []string) int {
 		DryRun: &c.DryRun,
 		NoReboot: &c.NoReboot })
 	if err != nil && strings.Contains(err.Error(), "NoCredentialProviders") {
-		c.Ui.Error("ERROR: No AWS credentials were found.  Either set the environment variables AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY, or run this program on an EC2 instance that has an IAM Role with the appropriate permissions.")
-		return 1
+		return snapshotId, errors.New("ERROR: No AWS credentials were found.  Either set the environment variables AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY, or run this program on an EC2 instance that has an IAM Role with the appropriate permissions.")
 	} else if err != nil {
-		panic(err)
+		return snapshotId, err
 	}
 
 	// Sleep here to give time for AMI to get found
 	time.Sleep(3000 * time.Millisecond)
 
 	// Assign tags to this AMI.  We'll use these when it comes time to delete the AMI
-	c.Ui.Output("==> Adding tags to AMI " + *resp.ImageId + "...")
+	snapshotId = *resp.ImageId
+	c.Ui.Output("==> Adding tags to AMI " + snapshotId + "...")
 
-	svc.CreateTags(&ec2.CreateTagsInput{
-		Resources: []*string{resp.ImageId},
+	_, tagsErr := svc.CreateTags(&ec2.CreateTagsInput{
+		Resources: []*string{&snapshotId},
 		Tags: []*ec2.Tag{
 			&ec2.Tag{ Key: aws.String("ec2-snapper-instance-id"), Value: &c.InstanceId },
 			&ec2.Tag{ Key: aws.String("Name"), Value: &c.Name },
 		},
 	})
 
+	if tagsErr != nil {
+		return snapshotId, tagsErr
+	}
+
 	// Check the status of the AMI
 	respDscrImages, err := svc.DescribeImages(&ec2.DescribeImagesInput{
 		Filters: []*ec2.Filter{
 			&ec2.Filter{
 				Name: aws.String("image-id"),
-				Values: []*string{resp.ImageId},
+				Values: []*string{&snapshotId},
 			},
 		},
 	})
 	if err != nil {
-		panic(err)
+		return snapshotId, err
 	}
 
 	// If no AMI at all was found, throw an error
 	if len(respDscrImages.Images) == 0 {
-		c.Ui.Error("ERROR: Could not find the AMI just created.")
-		return 1
+		return snapshotId, errors.New("ERROR: Could not find the AMI just created.")
 	}
 
 	// If the AMI's status is failed throw an error
 	if *respDscrImages.Images[0].State == "failed" {
-		c.Ui.Error("ERROR: AMI was created but entered a state of 'failed'. This is an AWS issue. Please re-run this command.  Note that you will need to manually de-register the AMI in the AWS console or via the API.")
-		return 1
+		return snapshotId, errors.New("ERROR: AMI was created but entered a state of 'failed'. This is an AWS issue. Please re-run this command.  Note that you will need to manually de-register the AMI in the AWS console or via the API.")
 	}
 
 	// Announce success
-	c.Ui.Info("==> Success! Created " + *resp.ImageId + " named \"" + name + "\"")
-	return 0
+	c.Ui.Info("==> Success! Created " + snapshotId + " named \"" + name + "\"")
+	return snapshotId, nil
 }
-
