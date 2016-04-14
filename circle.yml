@@ -8,8 +8,8 @@ dependencies:
   override:
     # Get our repo into the CircleCI GOPATH.
     - |
+        rm -rf ${REPO}
         mkdir -p ${REPO}
-        rmdir ${REPO}
         ln -s "/home/ubuntu/${CIRCLE_PROJECT_REPONAME}" "${REPO}"
 
 test:

@@ -5,12 +5,12 @@ ec2-snapper is a simple command-line tool for creating and deleting AMI's of you
 ## Download
 Download the latest version using the links below:
 
-- [ec2-snapper for Linux 64-bit](./bin/linux_amd64/ec2-snapper)
-- [ec2-snapper for Linux 32-bit](./bin/linux_386/ec2-snapper)
-- [ec2-snapper for Mac/OS X 64-bit](./bin/darwin_amd64/ec2-snapper)
-- [ec2-snapper for Mac/OS X 32-bit](./bin/darwin_386/ec2-snapper)
-- [ec2-snapper for Windows 64-bit](./bin/windows_amd64/ec2-snapper.exe)
-- [ec2-snapper for Windows 32-bit](./bin/windows_386/ec2-snapper.exe)
+- [ec2-snapper for Linux 64-bit](./raw/master/bin/linux_amd64/ec2-snapper)
+- [ec2-snapper for Linux 32-bit](./raw/master/bin/linux_386/ec2-snapper)
+- [ec2-snapper for Mac/OS X 64-bit](./raw/master/bin/darwin_amd64/ec2-snapper)
+- [ec2-snapper for Mac/OS X 32-bit](./raw/master/bin/darwin_386/ec2-snapper)
+- [ec2-snapper for Windows 64-bit](./raw/master/bin/windows_amd64/ec2-snapper.exe)
+- [ec2-snapper for Windows 32-bit](./raw/master/bin/windows_386/ec2-snapper.exe)
 
 For versioned releases, see the [releases page](https://github.com/josh-padnick/ec2-snapper/releases).
 
