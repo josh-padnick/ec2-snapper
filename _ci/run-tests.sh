@@ -16,5 +16,8 @@ readonly TEST_PARALLELISM="128"
 readonly SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd "$SCRIPT_DIR/.."
 
+# Install test dependencies
+go test -i
+
 # Set the verbose flag so we get log output even if the tests pass
 go test -v -timeout "$TEST_TIMEOUT" -parallel "$TEST_PARALLELISM"
