@@ -23,6 +23,8 @@ type CreateCommand struct {
 	NoReboot     bool
 }
 
+const EC2_SNAPPER_INSTANCE_ID_TAG = "ec2-snapper-instance-id"
+
 // descriptions for args
 var createDscrAwsRegion = "The AWS region to use (e.g. us-west-2)"
 var createDscrInstanceId = "The id of the instance from which to create the AMI"
@@ -123,7 +125,7 @@ func create(c CreateCommand) (string, error) {
 	_, tagsErr := svc.CreateTags(&ec2.CreateTagsInput{
 		Resources: []*string{&snapshotId},
 		Tags: []*ec2.Tag{
-			&ec2.Tag{ Key: aws.String("ec2-snapper-instance-id"), Value: &c.InstanceId },
+			&ec2.Tag{ Key: aws.String(EC2_SNAPPER_INSTANCE_ID_TAG), Value: &c.InstanceId },
 			&ec2.Tag{ Key: aws.String("Name"), Value: &c.AmiName },
 		},
 	})

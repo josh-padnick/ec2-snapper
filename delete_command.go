@@ -13,6 +13,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"math"
 	"errors"
+	"fmt"
 )
 
 type DeleteCommand struct {
@@ -227,7 +228,7 @@ func findImages(instanceId string, svc *ec2.EC2) ([]*ec2.Image, error) {
 	resp, err := svc.DescribeImages(&ec2.DescribeImagesInput{
 		Filters: []*ec2.Filter{
 			&ec2.Filter{
-				Name: aws.String("tag:ec2-snapper-instance-id"),
+				Name: aws.String(fmt.Sprintf("tag:%s", EC2_SNAPPER_INSTANCE_ID_TAG)),
 				Values: []*string{&instanceId},
 			},
 		},

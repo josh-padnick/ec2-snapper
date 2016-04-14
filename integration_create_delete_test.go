@@ -35,7 +35,7 @@ func TestCreateAndDelete(t *testing.T) {
 	defer terminateInstance(instance, svc, logger, t)
 	waitForInstanceToStart(instance, svc, logger, t)
 
-	snapshotId := takeSnapshotWithVerification(instanceName, ui, svc, logger, t)
+	snapshotId := takeSnapshotWithVerification(instanceName, *instance.InstanceId, ui, svc, logger, t)
 	deleteSnapshotWithVerification(instanceName, snapshotId, ui, svc, logger, t)
 }
 
@@ -53,7 +53,7 @@ func TestDeleteRespectsOlderThan(t *testing.T) {
 	defer terminateInstance(instance, svc, logger, t)
 	waitForInstanceToStart(instance, svc, logger, t)
 
-	snapshotId := takeSnapshotWithVerification(instanceName, ui, svc, logger, t)
+	snapshotId := takeSnapshotWithVerification(instanceName, *instance.InstanceId, ui, svc, logger, t)
 	// Always try to delete the snapshot at the end so the tests don't litter the AWS account with snapshots
 	defer deleteSnapshotWithVerification(instanceName, snapshotId, ui, svc, logger, t)
 
@@ -77,7 +77,7 @@ func TestDeleteRespectsAtLeast(t *testing.T) {
 	defer terminateInstance(instance, svc, logger, t)
 	waitForInstanceToStart(instance, svc, logger, t)
 
-	snapshotId := takeSnapshotWithVerification(instanceName, ui, svc, logger, t)
+	snapshotId := takeSnapshotWithVerification(instanceName, *instance.InstanceId, ui, svc, logger, t)
 	// Always try to delete the snapshot at the end so the tests don't litter the AWS account with snapshots
 	defer deleteSnapshotWithVerification(instanceName, snapshotId, ui, svc, logger, t)
 
@@ -215,10 +215,6 @@ func waitForInstanceToStart(instance *ec2.Instance, svc *ec2.EC2, logger *log.Lo
 		t.Fatal(err)
 	}
 
-	// It seems that the WaitUntilInstanceRunning returns even though the instance is still in "initializing" state,
-	// which may cause problems for taking snapshots, so sleep 30 seconds just to be extra sure
-	time.Sleep(30 * time.Second)
-
 	logger.Printf("Instance %s is now running", *instance.InstanceId)
 }
 
@@ -285,16 +281,17 @@ func findSnapshots(snapshotId string, svc *ec2.EC2, logger *log.Logger, t *testi
 	return resp.Images
 }
 
-func waitForSnapshotToBeAvailable(snapshotId string, svc *ec2.EC2, logger *log.Logger, t *testing.T) {
-	logger.Printf("Waiting for snapshot %s to become available", snapshotId)
+func waitForSnapshotToBeAvailable(instanceId string, svc *ec2.EC2, logger *log.Logger, t *testing.T) {
+	logger.Printf("Waiting for snapshot for instance %s to become available", instanceId)
 
-	if err := svc.WaitUntilImageAvailable(&ec2.DescribeImagesInput{ImageIds: []*string{&snapshotId}}); err != nil {
-		t.Fatal(err)
+	instanceIdTagFilter := &ec2.Filter{
+		Name: aws.String(fmt.Sprintf("tag:%s", EC2_SNAPPER_INSTANCE_ID_TAG)),
+		Values: []*string{aws.String(instanceId)},
 	}
 
-	// It seems that the WaitUntilImageAvailable method may return before the image is *really* available (e.g.
-	// if you try to delete it, you'll get an error), so sleep 30 seconds just to be extra sure
-	time.Sleep(30 * time.Second)
+	if err := svc.WaitUntilImageAvailable(&ec2.DescribeImagesInput{Filters: []*ec2.Filter{instanceIdTagFilter}}); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func waitForSnapshotToBeDeleted(snapshotId string, svc *ec2.EC2, logger *log.Logger, t *testing.T) {
@@ -320,10 +317,10 @@ func deleteSnapshotForInstance(instanceName string, olderThan string, requireAtL
 	}
 }
 
-func takeSnapshotWithVerification(instanceName string, ui cli.Ui, svc *ec2.EC2, logger *log.Logger, t *testing.T) string {
+func takeSnapshotWithVerification(instanceName string, instanceId string, ui cli.Ui, svc *ec2.EC2, logger *log.Logger, t *testing.T) string {
 	snapshotId := takeSnapshot(instanceName, ui, logger, t)
 
-	waitForSnapshotToBeAvailable(snapshotId, svc, logger, t)
+	waitForSnapshotToBeAvailable(instanceId, svc, logger, t)
 	verifySnapshotWorks(snapshotId, svc, logger, t)
 
 	return snapshotId
