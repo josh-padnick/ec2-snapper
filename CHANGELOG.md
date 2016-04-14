@@ -1,3 +1,11 @@
+# 0.4.0 (April 14, 2016)
+
+* REFACTOR: The AWS region is passed in via the `--region` param.
+* ENHANCEMENT: You can now specify an instance name via the `--instance-name` parameter instead of using `--instance-id`
+  (which might change every time you redeploy).
+* ENHANCEMENT: Added unit and integration tests.
+* TWEAK: Publish binaries directly in GitHub instead of bintray.
+
 # 0.3.0 (February 11, 2016)
 
 * ENHANCEMENT: Created AMIs now include the specified name in the `Name` tag. [GH-4](https://github.com/josh-padnick/ec2-snapper/pull/4)

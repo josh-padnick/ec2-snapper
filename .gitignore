@@ -1,8 +1,5 @@
 ### Custom for this repo
 
-# Ignore any built files
-ec2-snapper
-
 ### Ignore JetBrains IDEs: IntelliJ, RubyMine, PhpStorm, AppCode, PyCharm, CLion
 *.iml
 
