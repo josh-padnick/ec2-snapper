@@ -210,9 +210,15 @@ func tagInstance(instance *ec2.Instance, instanceName string, svc *ec2.EC2, logg
 
 func waitForInstanceToStart(instance *ec2.Instance, svc *ec2.EC2, logger *log.Logger, t *testing.T) {
 	logger.Printf("Waiting for instance %s to start...", *instance.InstanceId)
+
 	if err := svc.WaitUntilInstanceRunning(&ec2.DescribeInstancesInput{InstanceIds: []*string{instance.InstanceId}}); err != nil {
 		t.Fatal(err)
 	}
+
+	// It seems that the WaitUntilInstanceRunning returns even though the instance is still in "initializing" state,
+	// which may cause problems for taking snapshots, so sleep 30 seconds just to be extra sure
+	time.Sleep(30 * time.Second)
+
 	logger.Printf("Instance %s is now running", *instance.InstanceId)
 }
 
