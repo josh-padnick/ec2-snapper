@@ -19,6 +19,7 @@ type DeleteCommand struct {
 	Ui 			cli.Ui
 	AwsRegion 		string
 	InstanceId 		string
+	InstanceName 		string
 	OlderThan 		string
 	RequireAtLeast		int
 	DryRun			bool
@@ -26,7 +27,8 @@ type DeleteCommand struct {
 
 // descriptions for args
 var deleteDscrAwsRegion = "The AWS region to use (e.g. us-west-2)"
-var deleteDscrInstanceId = "The EC2 instance from which the AMIs to be deleted were originally created."
+var deleteDscrInstanceId = "The ID of the EC2 instance from which the AMIs to be deleted were originally created."
+var deleteDscrInstanceName = "The name (from tags) of the EC2 instance from which the AMIs to be deleted were originally created."
 var deleteOlderThan = "Delete AMIs older than the specified time; accepts formats like '30d' or '4h'."
 var requireAtLeast = "Never delete AMIs such that fewer than this number of AMIs will remain. E.g. require at least 3 AMIs remain."
 var deleteDscrDryRun = "Execute a simulated run. Lists AMIs to be deleted, but does not actually delete them."
@@ -38,7 +40,8 @@ Create an AMI of the given EC2 instance.
 
 Available args are:
 --region      		` + deleteDscrAwsRegion + `
---instance      	` + deleteDscrInstanceId + `
+--instance-id      	` + deleteDscrInstanceId + `
+--instance-name      	` + deleteDscrInstanceName + `
 --older-than    	` + deleteOlderThan + `
 --require-at-least      ` + requireAtLeast + `
 --dry-run       	` + deleteDscrDryRun
@@ -57,7 +60,8 @@ func (c *DeleteCommand) Run(args []string) int {
 	}
 
 	cmdFlags.StringVar(&c.AwsRegion, "region", "", deleteDscrAwsRegion)
-	cmdFlags.StringVar(&c.InstanceId, "instance", "", deleteDscrInstanceId)
+	cmdFlags.StringVar(&c.InstanceId, "instance-id", "", deleteDscrInstanceId)
+	cmdFlags.StringVar(&c.InstanceName, "instance-name", "", deleteDscrInstanceId)
 	cmdFlags.StringVar(&c.OlderThan, "older-than", "", deleteOlderThan)
 	cmdFlags.IntVar(&c.RequireAtLeast, "require-at-least", 0, requireAtLeast)
 	cmdFlags.BoolVar(&c.DryRun, "dry-run", false, deleteDscrDryRun)
@@ -75,7 +79,7 @@ func (c *DeleteCommand) Run(args []string) int {
 }
 
 func deleteSnapshots(c DeleteCommand) error {
-	if err := validateArgs(c); err != nil {
+	if err := validateDeleteArgs(c); err != nil {
 		return err
 	}
 
@@ -86,6 +90,14 @@ func deleteSnapshots(c DeleteCommand) error {
 	// Create an EC2 service object; AWS region is picked up from the "AWS_REGION" env var.
 	session := session.New(&aws.Config{Region: &c.AwsRegion})
 	svc := ec2.New(session)
+
+	if c.InstanceId == "" {
+		instanceId, err := getInstanceIdByName(c.InstanceName, svc, c.Ui)
+		if err != nil {
+			return err
+		}
+		c.InstanceId = instanceId
+	}
 
 	images, err := findImages(c.InstanceId, svc)
 	if err != nil {
@@ -166,13 +178,13 @@ func computeNumAmisToRemove(images []*ec2.Image, filteredAmis []*ec2.Image, requ
 }
 
 // Check for required command-line args
-func validateArgs(c DeleteCommand) error {
+func validateDeleteArgs(c DeleteCommand) error {
 	if c.AwsRegion == "" {
 		return errors.New("ERROR: The argument '--region' is required.")
 	}
 
-	if c.InstanceId == "" {
-		return errors.New("ERROR: The argument '--instance' is required.")
+	if (c.InstanceId == "" && c.InstanceName == "") || (c.InstanceId != "" && c.InstanceName != "") {
+		return errors.New("ERROR: You must specify exactly one of '--instance-id' or '--instance-name'.")
 	}
 
 	if c.OlderThan == "" {

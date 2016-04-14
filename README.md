@@ -92,11 +92,11 @@ For all options, run ```ec2-snapper create --help```.
 
 ```
 Example:
-ec2-snapper create --region us-west-2 --instance=i-c724be30 --name=MyEc2Instance --dry-run --no-reboot
+ec2-snapper create --region=us-west-2 --instance-id=i-c724be30 --ami-name=MyEc2Instance --dry-run --no-reboot
 ```
-You must specify the AWS region (e.g. `us-west-2`) and the ID of an EC2 instance in that region (e.g. `i-c724be30`) to be snapshotted, and give it a name such as "MyWebsite.com".  A current timestamp will automatically be appended to the name.
+You must specify the AWS region (e.g. `--region=us-west-2`) and either the ID (e.g. `--instance-id=i-c724be30`) or the name as set in an EC2 tag called "Name" (e.g. `--instance-name=my-instance`) of an EC2 instance in that region to be snapshotted. You also specify what to name the AMI, such as "MyWebsite.com", using the `--ami-name` parameter.  A current timestamp will automatically be appended to the AMI name.
 
-For example, `./ec2-snapper create --instance i-c724be30 --name "MyWebsite.com"` resulted in an AMI named "MyWebsite.com - 2015-06-08 at 08_26_51 (UTC)".
+For example, `./ec2-snapper create --instance-id=i-c724be30 --ami-name="MyWebsite.com"` resulted in an AMI named "MyWebsite.com - 2015-06-08 at 08_26_51 (UTC)".
 
 Adding `--dry-run` will simulate the command without actually taking a snapshot.
 
@@ -109,9 +109,9 @@ For all options, run ```ec2-snapper delete --help```.
 
 ```
 Example:
-ec2-snapper delete --region us-west-2 --instance=i-c724b30 --older-than=30d --dry-run
+ec2-snapper delete --region=us-west-2 --instance-id=i-c724b30 --older-than=30d --dry-run
 ```
-You must specify the AWS region (e.g. `us-west-2`) and the ID of an EC2 instance in that region (e.g. `i-c724be30`) originally used to create the AMIs you wish to delete, even if that EC2 instance has since been stopped or terminated.
+You must specify the AWS region (e.g. `--region=us-west-2`) and either the ID (e.g. `--instance-id=i-c724be30`) or the name as set in an EC2 tag called "Name" (e.g. `--instance-name=my-instance`) of an EC2 instance in that region that was originally used to create the AMIs you wish to delete (even if that EC2 instance has since been stopped or terminated).
 
 `--older-than` accepts time values like `30d`, `5h` or `15m` for 30 days, 5 hours, or 15 minutes, respectively.  For example, `--older-than=30d` tells ec2-snapper to delete any AMI for the given EC2 instance that is older than 30 days.
 
@@ -122,7 +122,21 @@ You must specify the AWS region (e.g. `us-west-2`) and the ID of an EC2 instance
 ## Contributors
 This was my first golang program, so I'm sure the code can benefit from various optimizations.  Pull requests and bug reports are always welcome.
 
-## Tests
+### Running from source
+The easiest way to run ec2-snapper from source is with the following command:
+
+```bash
+go run main.go *_command.go
+```
+
+This is necessary because all the code is in the `main` package, so you have to tell Go explicitly what to build and
+run. For example, to run the `create` command, you could do:
+
+```bash
+go run main.go *_command.go create --region=us-west-2 --instance-id=i-c1234567 --ami-name=MyBackup
+```
+
+### Tests
 This repo contains two types of tests:
 
 1. Unit tests: fast, isolated tests of individual functions. They use the name format `unit_xxx_test.go`.

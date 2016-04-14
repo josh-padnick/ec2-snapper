@@ -22,11 +22,15 @@ const USER_DATA_TEMPLATE =
 set -e
 echo '%s' > "%s"
 `
+var ui = &cli.BasicUi{
+	Reader:      os.Stdin,
+	Writer:      os.Stdout,
+	ErrorWriter: os.Stderr,
+}
+
 
 // An integration test that runs an EC2 instance, uses create_command to take a snapshot of it, and then delete_command
-// to delete that snapshot. Since testing these functions requires a lot of setup in an AWS account, it's faster and
-// easier to do a single integration test rather than a number of smaller unit tests that each do a lot of setup and
-// teardown.
+// to delete that snapshot.
 func TestCreateAndDelete(t *testing.T) {
 	t.Parallel()
 
@@ -35,30 +39,146 @@ func TestCreateAndDelete(t *testing.T) {
 	session := session.New(&aws.Config{Region: aws.String(AWS_REGION_FOR_TESTING)})
 	svc := ec2.New(session)
 
-	instance, uniqueId := launchInstance(svc, logger, t)
+	instance, instanceName := launchInstance(svc, logger, t)
 	defer terminateInstance(instance, svc, logger, t)
 	waitForInstanceToStart(instance, svc, logger, t)
 
-	ui := &cli.BasicUi{
-		Reader:      os.Stdin,
-		Writer:      os.Stdout,
-		ErrorWriter: os.Stderr,
-	}
-
-	snapshotId := takeSnapshot(instance, uniqueId, svc, ui, logger, t)
+	snapshotId := takeSnapshot(instanceName, ui, logger, t)
 	waitForSnapshotToBeAvailable(snapshotId, svc, logger, t)
 	verifySnapshotWorks(snapshotId, svc, logger, t)
 
-	deleteSnapshotForInstance(instance, ui, logger, t)
+	deleteSnapshotForInstance(instanceName, "0h", 0, ui, logger, t)
 	waitForSnapshotToBeDeleted(snapshotId, svc, logger, t)
 	verifySnapshotIsDeleted(snapshotId, svc, logger, t)
 }
 
-func launchInstance(svc *ec2.EC2, logger *log.Logger, t *testing.T) (*ec2.Instance, string) {
-	uniqueId := UniqueId()
-	userData := fmt.Sprint(USER_DATA_TEMPLATE, uniqueId, TEST_FILE_PATH)
+// An integration test that runs an EC2 instance, uses create_command to take a snapshot of it, and then calls the
+// delete_command to delete that snapshot, but setting the older than parmaeter in a way that should prevent any actual
+// deletion.
+func TestDeleteRespectsOlderThan(t *testing.T) {
+	t.Parallel()
 
-	logger.Printf("Launching EC2 instance in region %s. Its User Data will create a file %s with contents %s.", AWS_REGION_FOR_TESTING, TEST_FILE_PATH, uniqueId)
+	logger := log.New(os.Stdout, "TestDeleteRespectsOlderThan ", log.LstdFlags)
+
+	session := session.New(&aws.Config{Region: aws.String(AWS_REGION_FOR_TESTING)})
+	svc := ec2.New(session)
+
+	instance, instanceName := launchInstance(svc, logger, t)
+	defer terminateInstance(instance, svc, logger, t)
+	waitForInstanceToStart(instance, svc, logger, t)
+
+	snapshotId := takeSnapshot(instanceName, ui, logger, t)
+	waitForSnapshotToBeAvailable(snapshotId, svc, logger, t)
+	verifySnapshotWorks(snapshotId, svc, logger, t)
+
+	// Set olderThan to "10h" to ensure image does not get deleted
+	deleteSnapshotForInstance(instanceName, "10h", 0, ui, logger, t)
+	waitForSnapshotToBeDeleted(snapshotId, svc, logger, t)
+	// Check that the snapshot still exists
+	verifySnapshotWorks(snapshotId, svc, logger, t)
+}
+
+// An integration test that runs an EC2 instance, uses create_command to take a snapshot of it, and then calls the
+// delete_command to delete that snapshot, but setting the at least parameter in a way that should prevent any actual
+// deletion.
+func TestDeleteRespectsAtLeast(t *testing.T) {
+	t.Parallel()
+
+	logger := log.New(os.Stdout, "TestDeleteRespectsAtLeast ", log.LstdFlags)
+
+	session := session.New(&aws.Config{Region: aws.String(AWS_REGION_FOR_TESTING)})
+	svc := ec2.New(session)
+
+	instance, instanceName := launchInstance(svc, logger, t)
+	defer terminateInstance(instance, svc, logger, t)
+	waitForInstanceToStart(instance, svc, logger, t)
+
+	snapshotId := takeSnapshot(instanceName, ui, logger, t)
+	waitForSnapshotToBeAvailable(snapshotId, svc, logger, t)
+	verifySnapshotWorks(snapshotId, svc, logger, t)
+
+	// Set atLeast to 1 to ensure image does not get deleted
+	deleteSnapshotForInstance(instanceName, "0h", 1, ui, logger, t)
+	waitForSnapshotToBeDeleted(snapshotId, svc, logger, t)
+	// Check that the snapshot still exists
+	verifySnapshotWorks(snapshotId, svc, logger, t)
+}
+
+func TestCreateWithInvalidInstanceName(t *testing.T) {
+	t.Parallel()
+
+	cmd := CreateCommand{
+		Ui: ui,
+		AwsRegion: AWS_REGION_FOR_TESTING,
+		InstanceName: "not-a-valid-instance-name",
+		AmiName: "this-ami-should-not-be-created",
+	}
+
+	_, err := create(cmd)
+
+	if err == nil {
+		t.Fatalf("Expected an error when creating a snapshot of an instance name that doesn't exist, but instead got nil")
+	}
+}
+
+func TestCreateWithInvalidInstanceId(t *testing.T) {
+	t.Parallel()
+
+	cmd := CreateCommand{
+		Ui: ui,
+		AwsRegion: AWS_REGION_FOR_TESTING,
+		InstanceId: "not-a-valid-instance-id",
+		AmiName: "this-ami-should-not-be-created",
+	}
+
+	_, err := create(cmd)
+
+	if err == nil {
+		t.Fatalf("Expected an error when creating a snapshot of an instance id that doesn't exist, but instead got nil")
+	}
+}
+
+func TestDeleteWithInvalidInstanceName(t *testing.T) {
+	t.Parallel()
+
+	cmd := DeleteCommand{
+		Ui: ui,
+		AwsRegion: AWS_REGION_FOR_TESTING,
+		InstanceName: "not-a-valid-instance-name",
+		OlderThan: "0h",
+		RequireAtLeast: 0,
+	}
+
+	err := deleteSnapshots(cmd)
+
+	if err == nil {
+		t.Fatalf("Expected an error when deleting a snapshot of an instance name that doesn't exist, but instead got nil")
+	}
+}
+
+func TestDeleteWithInvalidInstanceId(t *testing.T) {
+	t.Parallel()
+
+	cmd := DeleteCommand{
+		Ui: ui,
+		AwsRegion: AWS_REGION_FOR_TESTING,
+		InstanceId: "not-a-valid-instance-id",
+		OlderThan: "0h",
+		RequireAtLeast: 0,
+	}
+
+	err := deleteSnapshots(cmd)
+
+	if err == nil {
+		t.Fatalf("Expected an error when deleting a snapshot of an instance id that doesn't exist, but instead got nil")
+	}
+}
+
+func launchInstance(svc *ec2.EC2, logger *log.Logger, t *testing.T) (*ec2.Instance, string) {
+	instanceName := fmt.Sprintf("ec2-snapper-unit-test-%s", UniqueId())
+	userData := fmt.Sprint(USER_DATA_TEMPLATE, instanceName, TEST_FILE_PATH)
+
+	logger.Printf("Launching EC2 instance in region %s. Its User Data will create a file %s with contents %s.", AWS_REGION_FOR_TESTING, TEST_FILE_PATH, instanceName)
 
 	runResult, err := svc.RunInstances(&ec2.RunInstancesInput{
 		ImageId:      aws.String(AMAZON_LINUX_AMI_ID),
@@ -79,12 +199,12 @@ func launchInstance(svc *ec2.EC2, logger *log.Logger, t *testing.T) (*ec2.Instan
 	instance := runResult.Instances[0]
 	logger.Printf("Launched instance %s", *instance.InstanceId)
 
-	tagInstance(instance, uniqueId, svc, logger, t)
+	tagInstance(instance, instanceName, svc, logger, t)
 
-	return instance, uniqueId
+	return instance, instanceName
 }
 
-func tagInstance(instance *ec2.Instance, uniqueId string, svc *ec2.EC2, logger *log.Logger, t *testing.T) {
+func tagInstance(instance *ec2.Instance, instanceName string, svc *ec2.EC2, logger *log.Logger, t *testing.T) {
 	logger.Printf("Adding tags to instance %s", *instance.InstanceId)
 
 	_ , err := svc.CreateTags(&ec2.CreateTagsInput{
@@ -92,7 +212,7 @@ func tagInstance(instance *ec2.Instance, uniqueId string, svc *ec2.EC2, logger *
 		Tags: []*ec2.Tag{
 			{
 				Key:   aws.String("Name"),
-				Value: aws.String(fmt.Sprintf("ec2-snapper-unit-test-%s", uniqueId)),
+				Value: aws.String(instanceName),
 			},
 		},
 	})
@@ -116,16 +236,14 @@ func terminateInstance(instance *ec2.Instance, svc *ec2.EC2, logger *log.Logger,
 	}
 }
 
-func takeSnapshot(instance *ec2.Instance, uniqueId string, svc *ec2.EC2, ui cli.Ui, logger *log.Logger, t *testing.T) string {
-	backupName := fmt.Sprintf("ec2-snapper-unit-test-create-%s", uniqueId)
-	log.Printf("Creating a snapshot with name %s.", backupName)
-
+func takeSnapshot(instanceName string, ui cli.Ui, logger *log.Logger, t *testing.T) string {
+	log.Printf("Creating a snapshot with name %s.", instanceName)
 
 	cmd := CreateCommand{
 		Ui: ui,
 		AwsRegion: AWS_REGION_FOR_TESTING,
-		InstanceId: *instance.InstanceId,
-		Name: backupName,
+		InstanceName: instanceName,
+		AmiName: instanceName,
 	}
 
 	snapshotId, err := create(cmd)
@@ -189,15 +307,15 @@ func waitForSnapshotToBeDeleted(snapshotId string, svc *ec2.EC2, logger *log.Log
 	time.Sleep(30 * time.Second)
 }
 
-func deleteSnapshotForInstance(instance *ec2.Instance, ui cli.Ui, logger *log.Logger, t *testing.T) {
-	logger.Printf("Deleting snapshot for instance %s", *instance.InstanceId)
+func deleteSnapshotForInstance(instanceName string, olderThan string, requireAtLeast int, ui cli.Ui, logger *log.Logger, t *testing.T) {
+	logger.Printf("Deleting snapshot for instance %s", instanceName)
 
 	deleteCmd := DeleteCommand{
 		Ui: ui,
 		AwsRegion: AWS_REGION_FOR_TESTING,
-		InstanceId: *instance.InstanceId,
-		OlderThan: "0h",
-		RequireAtLeast: 0,
+		InstanceName: instanceName,
+		OlderThan: olderThan,
+		RequireAtLeast: requireAtLeast,
 	}
 
 	if err := deleteSnapshots(deleteCmd); err != nil {
