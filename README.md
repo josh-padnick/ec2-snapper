@@ -29,24 +29,9 @@ I personally use it to backup my Wordpress blog which is running as a single EC2
 
 ## Prerequisites
 
-### 1. Indicate your AWS Region
-ec2-snapper needs to know which AWS region to operate on. You can tell it by exporting this environment variable:
+You will need to setup your AWS credentials so ec2-snapper can authenticate to AWS.
 
-```
-AWS_REGION=us-west-2
-```
-Common USA regions are:
-
-- North Virginia = `us-east-1`
-- North California = `us-west-1`
-- Oregon = `us-west-2`
-
-_*Tip: To export an environment variable on most linux distro's, edit the file `/etc/environment`.  You may need to reboot before this takes effect, or you can try the command `. /etc/environment` to apply the changes immediately.*_
-
-### 2. Setup Your AWS Credentials
-You will also need to authenticate to AWS.
-
-#### Option 1: Set Environment Variables
+### Option 1: Set Environment Variables
 One option is to authenticate by exporting the following environment variables:
 
 ```
@@ -54,10 +39,10 @@ AWS_ACCESS_KEY_ID=AKID1234567890
 AWS_SECRET_ACCESS_KEY=MY-SECRET-KEY
 ```
 
-#### Option 2: Use IAM Roles
+### Option 2: Use IAM Roles
 If you're running ec2-snapper on an Amazon EC2 instance, the preferred way to authenticate is by assigning an [IAM Role](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html) to your EC2 instance.  Note that IAM roles can only be assigned when an EC2 instance is being launched, and not after the fact.
 
-#### Account Permissions
+### Account Permissions
 Whichever method you use to authenticate, the AWS account you use to authenticate will need the limited set of IAM permissions in this IAM policy:
 
 ```
@@ -107,9 +92,9 @@ For all options, run ```ec2-snapper create --help```.
 
 ```
 Example:
-ec2-snapper create --instance=i-c724be30 --name=MyEc2Instance --dry-run --no-reboot
+ec2-snapper create --region us-west-2 --instance=i-c724be30 --name=MyEc2Instance --dry-run --no-reboot
 ```
-You must specify the EC2 instance ID (e.g. `i-c724be30`) to be snapshotted, and give it a name such as "MyWebsite.com".  A current timestamp will automatically be appended to the name.  
+You must specify the AWS region (e.g. `us-west-2`) and the ID of an EC2 instance in that region (e.g. `i-c724be30`) to be snapshotted, and give it a name such as "MyWebsite.com".  A current timestamp will automatically be appended to the name.
 
 For example, `./ec2-snapper create --instance i-c724be30 --name "MyWebsite.com"` resulted in an AMI named "MyWebsite.com - 2015-06-08 at 08_26_51 (UTC)".
 
@@ -124,9 +109,9 @@ For all options, run ```ec2-snapper delete --help```.
 
 ```
 Example:
-ec2-snapper delete --instance=i-c724b30 --older-than=30d --dry-run
+ec2-snapper delete --region us-west-2 --instance=i-c724b30 --older-than=30d --dry-run
 ```
-You must specify the EC2 instance ID (e.g. `i-c724be30`) originally used to create the AMIs you wish to delete, even if that EC2 instance has since been stopped or terminated.  
+You must specify the AWS region (e.g. `us-west-2`) and the ID of an EC2 instance in that region (e.g. `i-c724be30`) originally used to create the AMIs you wish to delete, even if that EC2 instance has since been stopped or terminated.
 
 `--older-than` accepts time values like `30d`, `5h` or `15m` for 30 days, 5 hours, or 15 minutes, respectively.  For example, `--older-than=30d` tells ec2-snapper to delete any AMI for the given EC2 instance that is older than 30 days.
 
@@ -136,3 +121,26 @@ You must specify the EC2 instance ID (e.g. `i-c724be30`) originally used to crea
 
 ## Contributors
 This was my first golang program, so I'm sure the code can benefit from various optimizations.  Pull requests and bug reports are always welcome.
+
+## Tests
+This repo contains two types of tests:
+
+1. Unit tests: fast, isolated tests of individual functions. They use the name format `unit_xxx_test.go`.
+2. Integration tests: slower, end-to-end tests that create and delete real resources in an AWS account. **All the
+   resources should fit into the AWS free tier, but if you've used up all your credits, you may be charged!**
+   Integration tests use the name format `integration_xxx_test.go`.
+
+To run the tests, first, set your AWS credentials using the environment variables `AWS_ACCESS_KEY_ID` and
+`AWS_SECRET_ACCESS_KEY`.
+
+To run all the tests:
+
+```bash
+./_ci/run-tests.sh
+```
+
+To run a specific test:
+
+```bash
+go test -run MY_TEST_NAME
+```

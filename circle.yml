@@ -1,0 +1,18 @@
+machine:
+  environment:
+    IMPORT_PATH: "github.com/gruntwork-io/${CIRCLE_PROJECT_REPONAME}"
+    REPO: "$HOME/.go_workspace/src/${IMPORT_PATH}"
+    GOOS: linux
+
+dependencies:
+  override:
+    # Get our repo into the CircleCI GOPATH.
+    - |
+        mkdir -p ${REPO}
+        rmdir ${REPO}
+        ln -s "/home/ubuntu/${CIRCLE_PROJECT_REPONAME}" "${REPO}"
+
+test:
+  override:
+    - |
+        ${REPO}/_ci/run-tests.sh
