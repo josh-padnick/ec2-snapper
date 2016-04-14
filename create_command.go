@@ -10,21 +10,26 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/mitchellh/cli"
 	"errors"
+	"fmt"
 )
 
 type CreateCommand struct {
-	Ui 		cli.Ui
-	AwsRegion 	string
-	InstanceId 	string
-	Name 		string
-	DryRun		bool
-	NoReboot	bool
+	Ui           cli.Ui
+	AwsRegion    string
+	InstanceId   string
+	InstanceName string
+	AmiName      string
+	DryRun       bool
+	NoReboot     bool
 }
+
+const EC2_SNAPPER_INSTANCE_ID_TAG = "ec2-snapper-instance-id"
 
 // descriptions for args
 var createDscrAwsRegion = "The AWS region to use (e.g. us-west-2)"
-var createDscrInstanceId = "The instance from which to create the AMI"
-var createDscrName = "The name of the AMI; the current timestamp will be automatically appended"
+var createDscrInstanceId = "The id of the instance from which to create the AMI"
+var createDscrInstanceName = "The name (from tags) of the instance from which to create the AMI"
+var createDscrAmiName = "The name of the AMI; the current timestamp will be automatically appended"
 var createDscrDryRun = "Execute a simulated run"
 var createDscrNoReboot = "If true, do not reboot the instance before creating the AMI. It is preferable to reboot the instance to guarantee a consistent filesystem when taking the snapshot, but the likelihood of an inconsistent snapshot is very low."
 
@@ -34,9 +39,10 @@ func (c *CreateCommand) Help() string {
 Create an AMI of the given EC2 instance.
 
 Available args are:
---region      ` + createDscrAwsRegion + `
---instance      ` + createDscrInstanceId + `
---name          ` + createDscrName + `
+--region      	` + createDscrAwsRegion + `
+--instance-id   ` + createDscrInstanceId + `
+--instance-name ` + createDscrInstanceName + `
+--ami-name      ` + createDscrAmiName + `
 --dry-run       ` + createDscrDryRun + `
 --no-reboot     ` + createDscrNoReboot
 }
@@ -52,8 +58,9 @@ func (c *CreateCommand) Run(args []string) int {
 	cmdFlags.Usage = func() { c.Ui.Output(c.Help()) }
 
 	cmdFlags.StringVar(&c.AwsRegion, "region", "", createDscrAwsRegion)
-	cmdFlags.StringVar(&c.InstanceId, "instance", "", createDscrInstanceId)
-	cmdFlags.StringVar(&c.Name, "name", "", createDscrName)
+	cmdFlags.StringVar(&c.InstanceId, "instance-id", "", createDscrInstanceId)
+	cmdFlags.StringVar(&c.InstanceName, "instance-name", "", createDscrInstanceName)
+	cmdFlags.StringVar(&c.AmiName, "ami-name", "", createDscrAmiName)
 	cmdFlags.BoolVar(&c.DryRun, "dry-run", false, createDscrDryRun)
 	cmdFlags.BoolVar(&c.NoReboot, "no-reboot", true, createDscrNoReboot)
 
@@ -72,29 +79,28 @@ func (c *CreateCommand) Run(args []string) int {
 func create(c CreateCommand) (string, error) {
 	snapshotId := ""
 
-	// Check for required command-line args
-	if c.AwsRegion == "" {
-		return snapshotId, errors.New("ERROR: The argument '--region' is required.")
-	}
-
-	if c.InstanceId == "" {
-		return snapshotId, errors.New("ERROR: The argument '--instance' is required.")
-	}
-
-	if c.Name == "" {
-		return snapshotId, errors.New("ERROR: The argument '--name' is required.")
+	if err := validateCreateArgs(c); err != nil {
+		return snapshotId, err
 	}
 
 	// Create an EC2 service object; AWS region is picked up from the "AWS_REGION" env var.
 	session := session.New(&aws.Config{Region: &c.AwsRegion})
 	svc := ec2.New(session)
 
+	if c.InstanceId == "" {
+		instanceId, err := getInstanceIdByName(c.InstanceName, svc, c.Ui)
+		if err != nil {
+			return snapshotId, err
+		}
+		c.InstanceId = instanceId
+	}
+
 	// Generate a nicely formatted timestamp for right now
 	const dateLayoutForAmiName = "2006-01-02 at 15_04_05 (MST)"
 	t := time.Now()
 
 	// Create the AMI Snapshot
-	name := c.Name + " - " + t.Format(dateLayoutForAmiName)
+	name := c.AmiName + " - " + t.Format(dateLayoutForAmiName)
 
 	c.Ui.Output("==> Creating AMI for " + c.InstanceId + "...")
 
@@ -119,8 +125,8 @@ func create(c CreateCommand) (string, error) {
 	_, tagsErr := svc.CreateTags(&ec2.CreateTagsInput{
 		Resources: []*string{&snapshotId},
 		Tags: []*ec2.Tag{
-			&ec2.Tag{ Key: aws.String("ec2-snapper-instance-id"), Value: &c.InstanceId },
-			&ec2.Tag{ Key: aws.String("Name"), Value: &c.Name },
+			&ec2.Tag{ Key: aws.String(EC2_SNAPPER_INSTANCE_ID_TAG), Value: &c.InstanceId },
+			&ec2.Tag{ Key: aws.String("Name"), Value: &c.AmiName },
 		},
 	})
 
@@ -154,4 +160,49 @@ func create(c CreateCommand) (string, error) {
 	// Announce success
 	c.Ui.Info("==> Success! Created " + snapshotId + " named \"" + name + "\"")
 	return snapshotId, nil
+}
+
+func validateCreateArgs(c CreateCommand) error {
+	if c.AwsRegion == "" {
+		return errors.New("ERROR: The argument '--region' is required.")
+	}
+
+	if (c.InstanceId == "" && c.InstanceName == "") || (c.InstanceId != "" && c.InstanceName != "") {
+		return errors.New("ERROR: You must specify exactly one of '--instance-id' or '--instance-name'.")
+	}
+
+	if c.AmiName == "" {
+		return errors.New("ERROR: The argument '--name' is required.")
+	}
+
+	return nil
+}
+
+func getInstanceIdByName(instanceName string, svc *ec2.EC2, ui cli.Ui) (string, error) {
+	ui.Output(fmt.Sprintf("Looking up id for instance named %s", instanceName))
+
+	nameTagFilter := ec2.Filter{
+		Name: aws.String("tag:Name"),
+		Values: []*string{aws.String(instanceName)},
+	}
+
+	result, err := svc.DescribeInstances(&ec2.DescribeInstancesInput{Filters: []*ec2.Filter{&nameTagFilter}})
+	if err != nil {
+		return "", err
+	}
+
+	if len(result.Reservations) != 1 {
+		return "", errors.New(fmt.Sprintf("Expected to find one result for instance name %s, but found %d", instanceName, len(result.Reservations)))
+	}
+
+	reservation := result.Reservations[0]
+
+	if len(reservation.Instances) != 1 {
+		return "", errors.New(fmt.Sprintf("Expected to find one instance with instance name %s, but found %d", instanceName, len(reservation.Instances)))
+	}
+
+	instance := reservation.Instances[0]
+	ui.Output(fmt.Sprintf("Found id %s for instance named %s", *instance.InstanceId, instanceName))
+
+	return *instance.InstanceId, nil
 }
