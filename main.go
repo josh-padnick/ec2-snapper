@@ -15,7 +15,7 @@ func main() {
 	}
 
 	// CLI stuff
-	c := cli.NewCLI("ec2-snapper", "0.4.0")
+	c := cli.NewCLI("ec2-snapper", "0.4.1")
 	c.Args = os.Args[1:]
 
 	c.Commands = map[string]cli.CommandFactory{
