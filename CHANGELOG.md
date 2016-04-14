@@ -1,3 +1,13 @@
+# 0.4.2 (April 15, 2016)
+
+* BUG: Fix version number.
+
+# 0.4.1 (April 14, 2016)
+
+* TWEAK: Use gox for cross-compile.
+* BUG: Fix extra newline issue in binaries.
+* BUG: Fix issues in `circle.yml`.
+
 # 0.4.0 (April 14, 2016)
 
 * REFACTOR: The AWS region is passed in via the `--region` param.

@@ -160,3 +160,14 @@ To run a specific test:
 ```bash
 go test -run MY_TEST_NAME
 ```
+
+### Release process
+
+1. Update the version number in `main.go`.
+1. Rebuild binaries by running `cross-compile.sh`.
+1. Update `CHANGELOG.md`.
+1. Commit all changes.
+1. Create a new release using the [GitHub Release Page](https://github.com/josh-padnick/ec2-snapper/releases). Make
+   sure to use the same version number as in step #1 and the changelog from step #3.
+
+TODO: automate this process!
