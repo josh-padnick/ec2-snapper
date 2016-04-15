@@ -83,7 +83,6 @@ func create(c CreateCommand) (string, error) {
 		return snapshotId, err
 	}
 
-	// Create an EC2 service object; AWS region is picked up from the "AWS_REGION" env var.
 	session := session.New(&aws.Config{Region: &c.AwsRegion})
 	svc := ec2.New(session)
 

@@ -1,3 +1,7 @@
+# 0.5.0 (April 15, 2016)
+
+* ENHANCEMENT: Add support for a `report` command for reporting CloudWatch metrics.
+
 # 0.4.2 (April 15, 2016)
 
 * BUG: Fix version number.
