@@ -135,7 +135,7 @@ ec2-snapper report --region=us-west-2 --metric-name=MyEc2Backup --namespace=MyCu
 
 This command will write a custom metric to the specified region (e.g. `--region=us-west-2`) with the specified name (e.g. `--metric-name=MyEc2Backup`), namespace (e.g. `--namespace=MyCustomMetrics`), and value (e.g. `--value=1`). You can then add monitoring and alerting around this metric.
 
-For example, let's say you use a cronjob to run ec2-snapper once per night, and if the job completes successfully, you fire the metric as shown in the example above. In that case, you could create a CloudWatch alarm that goes off if the value of the `MyEc2Backup` metric is less than 1 over a 24 hour period. That way, you'd be notified if your cronjob failed for any reason.
+For example, let's say you use a cronjob to run ec2-snapper once per night, and if the job completes successfully, you fire the metric as shown in the example above. In that case, you could create a CloudWatch alarm that goes off if the value of the `MyEc2Backup` metric is less than 1 over a 24 hour period. You can configure the alarm to send you an email or text message whenever it goes into `INSUFFICIENT_DATA` state, which would be an indicator that the cronjob failed for some reason.
 
 ## Contributors
 This was my first golang program, so I'm sure the code can benefit from various optimizations.  Pull requests and bug reports are always welcome.
