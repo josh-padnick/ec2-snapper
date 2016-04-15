@@ -130,7 +130,7 @@ For all options, run `ec2-snapper report --help`.
 Example:
 
 ```bash
-ec2-snapper report --region=us-west-2 --metric-name=MyEc2Backup --namespace=MyCustomMetrics --value=1
+ec2-snapper report --region=us-west-2 --name=MyEc2Backup --namespace=MyCustomMetrics --value=1
 ```
 
 This command will write a custom metric to the specified region (e.g. `--region=us-west-2`) with the specified name (e.g. `--metric-name=MyEc2Backup`), namespace (e.g. `--namespace=MyCustomMetrics`), and value (e.g. `--value=1`). You can then add monitoring and alerting around this metric.
