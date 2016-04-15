@@ -15,7 +15,7 @@ func main() {
 	}
 
 	// CLI stuff
-	c := cli.NewCLI("ec2-snapper", "0.4.2")
+	c := cli.NewCLI("ec2-snapper", "0.5.0")
 	c.Args = os.Args[1:]
 
 	c.Commands = map[string]cli.CommandFactory{
@@ -32,6 +32,17 @@ func main() {
 		},
 		"delete": func() (cli.Command, error) {
 			return &DeleteCommand{
+				Ui: &cli.ColoredUi{
+					Ui: ui,
+					OutputColor: cli.UiColorNone,
+					ErrorColor:  cli.UiColorRed,
+					WarnColor:   cli.UiColorYellow,
+					InfoColor:   cli.UiColorGreen,
+				},
+			}, nil
+		},
+		"report": func() (cli.Command, error) {
+			return &ReportCommand{
 				Ui: &cli.ColoredUi{
 					Ui: ui,
 					OutputColor: cli.UiColorNone,

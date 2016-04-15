@@ -88,7 +88,6 @@ func deleteSnapshots(c DeleteCommand) error {
 		c.Ui.Warn("WARNING: This is a dry run, and no actions will be taken, despite what any output may say!")
 	}
 
-	// Create an EC2 service object; AWS region is picked up from the "AWS_REGION" env var.
 	session := session.New(&aws.Config{Region: &c.AwsRegion})
 	svc := ec2.New(session)
 
