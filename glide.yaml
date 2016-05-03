@@ -1,0 +1,9 @@
+package: github.com/josh-padnick/ec2-snapper
+import:
+- package: github.com/aws/aws-sdk-go
+  subpackages:
+  - aws
+  - aws/session
+  - service/cloudwatch
+  - service/ec2
+- package: github.com/mitchellh/cli
