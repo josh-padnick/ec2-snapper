@@ -3,16 +3,7 @@
 ec2-snapper is a simple command-line tool for creating and deleting AMI's of your EC2 instances.  It was designed to make it easy to make backups of your AMI's and to cleanup old backups by deleting all AMI's (and their corresponding Snapshots) for a given EC2 instance which are older than X days/hours/minutes. It works especially well as part of a cronjob. It can also report custom metrics to CloudWatch, which can be useful for triggering alarms if a cronjob fails to run.
 
 ## Download
-Download the latest version using the links below:
-
-- [ec2-snapper for Linux 64-bit](https://raw.githubusercontent.com/josh-padnick/ec2-snapper/v0.4.1/bin/linux_amd64/ec2-snapper)
-- [ec2-snapper for Linux 32-bit](https://raw.githubusercontent.com/josh-padnick/ec2-snapper/v0.4.1/bin/linux_386/ec2-snapper)
-- [ec2-snapper for Mac/OS X 64-bit](https://raw.githubusercontent.com/josh-padnick/ec2-snapper/v0.4.1/bin/darwin_amd64/ec2-snapper)
-- [ec2-snapper for Mac/OS X 32-bit](https://raw.githubusercontent.com/josh-padnick/ec2-snapper/v0.4.1/bin/darwin_386/ec2-snapper)
-- [ec2-snapper for Windows 64-bit](https://raw.githubusercontent.com/josh-padnick/ec2-snapper/v0.4.1/bin/windows_amd64/ec2-snapper.exe)
-- [ec2-snapper for Windows 32-bit](https://raw.githubusercontent.com/josh-padnick/ec2-snapper/v0.4.1/bin/windows_386/ec2-snapper.exe)
-
-For versioned releases, see the [releases page](https://github.com/josh-padnick/ec2-snapper/releases).
+Download the latest version from the [releases page](https://github.com/josh-padnick/ec2-snapper/releases).
 
 ## Motivation
 For the full story, see the [Motivating Blog Post](https://joshpadnick.com/2015/06/18/a-simple-tool-for-snapshotting-your-ec2-instances/).
