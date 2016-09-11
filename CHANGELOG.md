@@ -1,3 +1,9 @@
+# 0.5.1 (September 11, 2016)
+
+* ENHANCEMENT: ec2-snapper now also tags the EBS volume snapshots it creates as part of the process of creating an AMI.
+  This allows you to find an AMI by name and restore an entire EC2 Instance, or find individual EBS Volumes by name and
+  restore just a single volume.
+
 # 0.5.0 (April 15, 2016)
 
 * ENHANCEMENT: Add support for a `report` command for reporting CloudWatch metrics.
