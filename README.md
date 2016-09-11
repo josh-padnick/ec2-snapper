@@ -45,6 +45,7 @@ Whichever method you use to authenticate, the AWS account you use to authenticat
             "Sid": "Stmt1433747550000",
             "Effect": "Allow",
             "Action": [
+                "cloudwatch:PutMetricData",
                 "ec2:CreateImage",
                 "ec2:CreateTags",
                 "ec2:DeleteSnapshot",
