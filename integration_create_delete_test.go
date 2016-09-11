@@ -186,6 +186,11 @@ func launchInstance(svc *ec2.EC2, logger *log.Logger, t *testing.T) (*ec2.Instan
 	instance := runResult.Instances[0]
 	logger.Printf("Launched instance %s", *instance.InstanceId)
 
+	err = svc.WaitUntilInstanceExists(&ec2.DescribeInstancesInput{InstanceIds: []*string{instance.InstanceId}})
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	tagInstance(instance, instanceName, svc, logger, t)
 
 	return instance, instanceName

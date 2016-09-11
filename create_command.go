@@ -151,9 +151,29 @@ func create(c CreateCommand) (string, error) {
 		return snapshotId, errors.New("ERROR: Could not find the AMI just created.")
 	}
 
+	ami := *respDscrImages.Images[0]
+
 	// If the AMI's status is failed throw an error
-	if *respDscrImages.Images[0].State == "failed" {
+	if *ami.State == ec2.ImageStateFailed {
 		return snapshotId, errors.New("ERROR: AMI was created but entered a state of 'failed'. This is an AWS issue. Please re-run this command.  Note that you will need to manually de-register the AMI in the AWS console or via the API.")
+	}
+
+	// Tag each volume for the AMI as well so we can find them later
+	for _, blockDeviceMapping := range ami.BlockDeviceMappings {
+		if blockDeviceMapping != nil && blockDeviceMapping.Ebs != nil {
+			c.Ui.Output("==> Adding tags to EBS Volume Snapshot " + *blockDeviceMapping.Ebs.SnapshotId + " (" + *blockDeviceMapping.DeviceName + ") of AMI " + *ami.Name + "...")
+			_, err := svc.CreateTags(&ec2.CreateTagsInput{
+				Resources: []*string{blockDeviceMapping.Ebs.SnapshotId},
+				Tags: []*ec2.Tag{
+					&ec2.Tag{ Key: aws.String(EC2_SNAPPER_INSTANCE_ID_TAG), Value: &c.InstanceId },
+					&ec2.Tag{ Key: aws.String("Name"), Value: aws.String(c.AmiName + "-" + *blockDeviceMapping.DeviceName) },
+				},
+			})
+
+			if err != nil {
+				return snapshotId, err
+			}
+		}
 	}
 
 	// Announce success
