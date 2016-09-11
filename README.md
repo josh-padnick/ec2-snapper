@@ -50,6 +50,7 @@ Whichever method you use to authenticate, the AWS account you use to authenticat
                 "ec2:DeleteSnapshot",
                 "ec2:DeregisterImage",
                 "ec2:DescribeImages",
+                "ec2:DescribeInstances",
                 "ec2:DescribeSnapshots"
             ],
             "Resource": [
