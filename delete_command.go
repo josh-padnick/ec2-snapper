@@ -97,12 +97,26 @@ func deleteSnapshots(c DeleteCommand) error {
 			return err
 		}
 		c.InstanceId = instanceId
+	} else {
+		result, err := svc.DescribeInstances(&ec2.DescribeInstancesInput{InstanceIds: []*string{aws.String(c.InstanceId)}})
+		if err != nil {
+			return err
+		}
+		if len(result.Reservations) == 0 || len(result.Reservations[0].Instances) == 0 {
+			return fmt.Errorf("Could not find an instance with id %s", c.InstanceId)
+		}
 	}
 
 	images, err := findImages(c.InstanceId, svc)
 	if err != nil {
 		return err
 	}
+
+	if len(images) == 0 {
+		c.Ui.Info("NO ACTION TAKEN. There are no existing snapshots of instance " + c.InstanceId + " to delete.")
+		return nil
+	}
+
 	// Check that at least the --require-at-least number of AMIs exists
 	// - Note that even if this passes, we still want to avoid deleting so many AMIs that we go below the threshold
 	if len(images) <= c.RequireAtLeast {
@@ -236,9 +250,6 @@ func findImages(instanceId string, svc *ec2.EC2) ([]*ec2.Image, error) {
 		return noImages, errors.New("ERROR: No AWS credentials were found.  Either set the environment variables AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY, or run this program on an EC2 instance that has an IAM Role with the appropriate permissions.")
 	} else if err != nil {
 		return noImages, err
-	}
-	if len(resp.Images) == 0 {
-		return noImages, errors.New("No AMIs were found for EC2 instance \"" + instanceId + "\"")
 	}
 
 	return resp.Images, nil

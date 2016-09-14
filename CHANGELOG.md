@@ -1,3 +1,8 @@
+# 0.5.2 (September 14, 2016)
+
+* BUG: The ec2-snapper `delete` command now gracefully exits if no snapshots exist for the given instance rather than
+  exiting with an error.
+
 # 0.5.1 (September 11, 2016)
 
 * ENHANCEMENT: ec2-snapper now also tags the EBS volume snapshots it creates as part of the process of creating an AMI.

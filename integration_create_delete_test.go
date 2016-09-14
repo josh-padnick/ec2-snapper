@@ -87,6 +87,22 @@ func TestDeleteRespectsAtLeast(t *testing.T) {
 	verifySnapshotWorks(snapshotId, svc, logger, t)
 }
 
+// An integration test that runs an EC2 instance, does not take any snapshots of it, and then calls the delete_command
+// to ensure that it exits gracefully even if no snapshots exist.
+func TestDeleteHandlesNoSnapshots(t *testing.T) {
+	t.Parallel()
+
+	logger, ui := createLoggerAndUi("TestDeleteHandlesNoSnapshots")
+	session := session.New(&aws.Config{Region: aws.String(AWS_REGION_FOR_TESTING)})
+	svc := ec2.New(session)
+
+	instance, instanceName := launchInstance(svc, logger, t)
+	defer terminateInstance(instance, svc, logger, t)
+	waitForInstanceToStart(instance, svc, logger, t)
+
+	deleteSnapshotForInstance(instanceName, "0h", 0, ui, logger, t)
+}
+
 func TestCreateWithInvalidInstanceName(t *testing.T) {
 	t.Parallel()
 
