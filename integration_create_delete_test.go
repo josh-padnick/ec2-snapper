@@ -100,7 +100,6 @@ func TestDeleteHandlesNoSnapshots(t *testing.T) {
 	defer terminateInstance(instance, svc, logger, t)
 	waitForInstanceToStart(instance, svc, logger, t)
 
-	// Set atLeast to 1 to ensure the snapshot, which is the only one that exists, does not get deleted
 	deleteSnapshotForInstance(instanceName, "0h", 0, ui, logger, t)
 }
 

@@ -97,6 +97,14 @@ func deleteSnapshots(c DeleteCommand) error {
 			return err
 		}
 		c.InstanceId = instanceId
+	} else {
+		result, err := svc.DescribeInstances(&ec2.DescribeInstancesInput{InstanceIds: []*string{aws.String(c.InstanceId)}})
+		if err != nil {
+			return err
+		}
+		if len(result.Reservations) == 0 || len(result.Reservations[0].Instances) == 0 {
+			return fmt.Errorf("Could not find an instance with id %s", c.InstanceId)
+		}
 	}
 
 	images, err := findImages(c.InstanceId, svc)
